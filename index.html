@@ -104,6 +104,13 @@
 
   /* Listening control */
   .listen-block{display:flex;flex-direction:column;gap:12px;}
+  .level-row{display:flex;align-items:center;gap:10px;}
+  .level-track{flex:1;height:10px;background:var(--panel-2);border-radius:5px;overflow:hidden;border:1px solid var(--line);}
+  .level-bar{height:100%;width:0;background:var(--green);transition:width .06s linear;}
+  .level-bar.below{background:var(--ink-faint);}
+  .sens-row{display:flex;align-items:center;gap:10px;}
+  .sens-row input[type=range]{flex:1;accent-color:var(--brass);}
+  .mono-val{font-family:var(--mono);font-size:12.5px;color:var(--ink-dim);width:32px;text-align:right;}
   .mode-row{display:flex;gap:6px;flex-wrap:wrap;}
   .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
   .seg button{
@@ -224,7 +231,7 @@
   <!-- Low A calibration -->
   <section class="card">
     <h2>Low A reference</h2>
-    <p class="hint">Every other note and drone is calculated from this. Set it by ear, or play a Low A and tap “use current pitch.”</p>
+    <p class="hint">Every other note and drone is calculated from this. Set it by ear, or start tuning, tap “use current pitch,” and play a steady Low A — it gives you 5 seconds to get ready, then samples for 3 seconds.</p>
     <div class="lowa-row">
       <div class="field">
         <label for="lowAInput">Low A (Hz)</label>
@@ -233,12 +240,26 @@
       <button class="btn" id="useCurrentBtn" disabled>Use current pitch</button>
       <button class="btn ghost" id="resetLowABtn">Reset to 480.0</button>
     </div>
+    <p class="hint" id="calibrationStatus" style="margin:10px 0 0;"></p>
   </section>
 
   <!-- Listen control + hero -->
   <section class="card">
     <div class="listen-block">
       <button class="btn brass wide" id="listenBtn">Start tuning (enable microphone)</button>
+
+      <div class="level-row">
+        <span class="hint" style="margin:0;white-space:nowrap;">Input level</span>
+        <div class="level-track"><div class="level-bar" id="levelBar"></div></div>
+      </div>
+      <p class="hint" id="levelHint" style="margin:2px 0 0;">Play a note — the bar should sit comfortably past the halfway mark. Barely moving? Raise sensitivity below or move closer.</p>
+
+      <div class="sens-row">
+        <label for="sensitivitySlider" class="hint" style="margin:0;">Mic sensitivity</label>
+        <input type="range" id="sensitivitySlider" min="1" max="10" step="1" value="4">
+        <span class="mono-val" id="sensitivityVal">4×</span>
+      </div>
+
       <div class="mode-row">
         <span class="hint" style="margin:0;">Listening for:</span>
         <div class="seg" id="modeSeg">
@@ -384,6 +405,9 @@
     equalTemperament: false,
     tempUnit:'C',
     mode:'both', // both | chanter | drones
+    sensitivity: 4,          // mic input gain multiplier, 1-10
+    silenceThreshold: 0.004, // rms below this = "no signal"
+    clarityThreshold: 0.85,  // autocorrelation peak/zero-lag ratio required to trust a reading
   };
 
   let lastReadings = {}; // id -> {cents, freq, ts}
@@ -399,6 +423,9 @@
         state.equalTemperament = !!saved.equalTemperament;
         state.tempUnit = saved.tempUnit || 'C';
         state.mode = saved.mode || 'both';
+        state.sensitivity = typeof saved.sensitivity === 'number' ? saved.sensitivity : state.sensitivity;
+        state.silenceThreshold = typeof saved.silenceThreshold === 'number' ? saved.silenceThreshold : state.silenceThreshold;
+        state.clarityThreshold = typeof saved.clarityThreshold === 'number' ? saved.clarityThreshold : state.clarityThreshold;
         if (Array.isArray(saved.chanter) && saved.chanter.length === DEFAULT_CHANTER.length){
           state.chanter = saved.chanter;
         }
@@ -417,6 +444,9 @@
         mode: state.mode,
         chanter: state.chanter,
         drones: state.drones,
+        sensitivity: state.sensitivity,
+        silenceThreshold: state.silenceThreshold,
+        clarityThreshold: state.clarityThreshold,
       }), false);
     }catch(e){ console.warn('settings save failed', e); }
   }
@@ -453,7 +483,7 @@
     let rms = 0;
     for (let i=0;i<SIZE;i++){ rms += buf[i]*buf[i]; }
     rms = Math.sqrt(rms/SIZE);
-    if (rms < 0.008) return {freq:-1, clarity:0}; // too quiet / no signal
+    if (rms < state.silenceThreshold) return {freq:-1, clarity:0, rms}; // too quiet / no signal
 
     // trim near-silent edges to tighten the analysis window
     let start=0, end=SIZE-1;
@@ -492,11 +522,17 @@
 
     const clarity = Math.max(0, Math.min(1, bestVal/zeroLag));
     const freq = refinedLag>0 ? sampleRate/refinedLag : -1;
-    return {freq, clarity};
+    return {freq, clarity, rms};
   }
 
-  /* ---------- audio graph ---------- */
-  let audioCtx=null, analyser=null, micStream=null, rafId=null;
+  /* ---------- audio graph ----------
+     Chain: mic -> highpass (cuts rumble/handling noise below the bass
+     drone) -> lowpass (tames the reed's harsh upper harmonics, which
+     otherwise compete with the fundamental for autocorrelation's
+     attention) -> gain (user-adjustable "sensitivity", since disabling
+     the browser's own AGC for signal purity means quiet/distant playing
+     otherwise needs the mic held right up to the chanter) -> analyser. */
+  let audioCtx=null, analyser=null, micStream=null, rafId=null, gainNode=null;
   let freqHistory = [];
   const HISTORY_LEN = 6;
 
@@ -532,10 +568,22 @@
     }
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (audioCtx.state === 'suspended') await audioCtx.resume();
+
     const source = audioCtx.createMediaStreamSource(micStream);
+    const highpass = audioCtx.createBiquadFilter();
+    highpass.type = 'highpass'; highpass.frequency.value = 50; highpass.Q.value = 0.7;
+    const lowpass = audioCtx.createBiquadFilter();
+    lowpass.type = 'lowpass'; lowpass.frequency.value = 1800; lowpass.Q.value = 0.7;
+    gainNode = audioCtx.createGain();
+    gainNode.gain.value = state.sensitivity;
+
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 4096;
-    source.connect(analyser);
+    analyser.fftSize = 2048; // smaller buffer = faster autocorrelation, more updates/sec
+
+    source.connect(highpass);
+    highpass.connect(lowpass);
+    lowpass.connect(gainNode);
+    gainNode.connect(analyser);
 
     freqHistory = [];
     setListeningUI(true);
@@ -545,20 +593,23 @@
   function stopListening(){
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
+    if (calibrating) cancelCalibration();
     if (micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
     if (audioCtx){ audioCtx.close().catch(()=>{}); audioCtx=null; }
-    analyser = null;
+    analyser = null; gainNode = null;
     setListeningUI(false);
     resetHeroIdle();
+    setLevelMeter(0);
   }
 
-  const buf = new Float32Array(4096);
+  const buf = new Float32Array(2048);
   function loop(){
     rafId = requestAnimationFrame(loop);
     if (!analyser) return;
     analyser.getFloatTimeDomainData(buf);
-    const {freq, clarity} = autoCorrelate(buf, audioCtx.sampleRate);
-    if (freq > 0 && clarity > 0.90){
+    const {freq, clarity, rms} = autoCorrelate(buf, audioCtx.sampleRate);
+    setLevelMeter(rms);
+    if (freq > 0 && clarity > state.clarityThreshold){
       freqHistory.push(freq);
       if (freqHistory.length > HISTORY_LEN) freqHistory.shift();
       const stable = median(freqHistory);
@@ -567,6 +618,14 @@
       freqHistory = [];
       resetHeroListeningNoSignal();
     }
+  }
+
+  function setLevelMeter(rms){
+    const bar = document.getElementById('levelBar');
+    if (!bar) return;
+    const pct = Math.max(0, Math.min(100, (rms||0) * 350));
+    bar.style.width = pct + '%';
+    bar.classList.toggle('below', (rms||0) < state.silenceThreshold);
   }
 
   /* ---------- matching + UI update ---------- */
@@ -766,13 +825,83 @@
     lowAInput.value = '480.0';
     renderTables(); renderRelative(); saveSettings();
   });
-  document.getElementById('useCurrentBtn').addEventListener('click', ()=>{
-    if (freqHistory.length===0) return;
-    const f = median(freqHistory);
+  /* ---------- Low A capture: 5s get-ready delay, then sample for 3s ---------- */
+  let calibrating = false;
+  let calibrationTimer = null;
+  let calibrationSamples = [];
+  const useCurrentBtn = document.getElementById('useCurrentBtn');
+  const calibrationStatus = document.getElementById('calibrationStatus');
+
+  function calStatus(text){ if (calibrationStatus) calibrationStatus.textContent = text; }
+
+  function startCalibration(){
+    if (!listening || calibrating) return;
+    calibrating = true;
+    calibrationSamples = [];
+    useCurrentBtn.textContent = 'Cancel';
+    let remaining = 5;
+    calStatus('Get ready — play a steady Low A. Sampling starts in ' + remaining + 's…');
+    calibrationTimer = setInterval(()=>{
+      remaining--;
+      if (remaining > 0){
+        calStatus('Get ready — play a steady Low A. Sampling starts in ' + remaining + 's…');
+      } else {
+        clearInterval(calibrationTimer);
+        beginSampling();
+      }
+    }, 1000);
+  }
+
+  function beginSampling(){
+    let elapsed = 0;
+    calStatus('Sampling… keep holding Low A (3s)');
+    calibrationTimer = setInterval(()=>{
+      if (freqHistory.length > 0) calibrationSamples.push(median(freqHistory));
+      elapsed += 100;
+      if (elapsed >= 3000){
+        clearInterval(calibrationTimer);
+        finishCalibration();
+      }
+    }, 100);
+  }
+
+  function finishCalibration(){
+    calibrating = false;
+    calibrationTimer = null;
+    useCurrentBtn.textContent = 'Use current pitch';
+    if (calibrationSamples.length < 8){
+      calStatus('Didn\u2019t catch a steady enough signal — try again, holding the note through the full sample.');
+      return;
+    }
+    const f = median(calibrationSamples);
     state.lowA = Math.round(f*10)/10;
     lowAInput.value = state.lowA.toFixed(1);
-    renderTables(); renderRelative(); saveSettings();
+    renderTables(); renderRelative(); renderIntervalEditor(); saveSettings();
+    calStatus('Low A set to ' + state.lowA.toFixed(1) + ' Hz, from ' + calibrationSamples.length + ' samples.');
+  }
+
+  function cancelCalibration(){
+    if (calibrationTimer) clearInterval(calibrationTimer);
+    calibrationTimer = null;
+    calibrating = false;
+    useCurrentBtn.textContent = 'Use current pitch';
+    calStatus('Cancelled.');
+  }
+
+  useCurrentBtn.addEventListener('click', ()=>{
+    if (calibrating) cancelCalibration(); else startCalibration();
   });
+
+  /* ---------- sensitivity slider ---------- */
+  const sensitivitySlider = document.getElementById('sensitivitySlider');
+  const sensitivityVal = document.getElementById('sensitivityVal');
+  sensitivitySlider.addEventListener('input', ()=>{
+    const v = parseInt(sensitivitySlider.value, 10);
+    state.sensitivity = v;
+    sensitivityVal.textContent = v + '\u00D7';
+    if (gainNode) gainNode.gain.value = v;
+  });
+  sensitivitySlider.addEventListener('change', saveSettings);
 
   /* ---------- mode segment ---------- */
   document.getElementById('modeSeg').addEventListener('click', (e)=>{
@@ -908,6 +1037,8 @@
     await loadSettings();
     await loadLog();
     lowAInput.value = state.lowA.toFixed(1);
+    sensitivitySlider.value = state.sensitivity;
+    sensitivityVal.textContent = state.sensitivity + '\u00D7';
     document.getElementById('etToggle').checked = state.equalTemperament;
     document.querySelectorAll('#modeSeg button').forEach(b=>{
       b.classList.toggle('active', b.dataset.mode===state.mode);
