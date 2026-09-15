@@ -1,0 +1,15 @@
+{
+  "name": "Pìob — Chanter & Drone Tuner",
+  "short_name": "Pìob Tuner",
+  "description": "Real-time Great Highland Bagpipe tuner: set your Low A, autodetect chanter notes and drones, and track tuning against temperature.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#10161A",
+  "theme_color": "#10161A",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

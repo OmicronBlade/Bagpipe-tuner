@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pìob — Chanter &amp; Drone Tuner</title>
+<meta name="description" content="A real-time Great Highland Bagpipe tuner: set your Low A, autodetect chanter notes and drones, and see the whole chanter's tuning at a glance.">
+<meta name="theme-color" content="#10161A">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#10161A;
+    --panel:#161F1D;
+    --panel-2:#1B2623;
+    --line:#28352F;
+    --brass:#C9A24B;
+    --brass-soft:#9C824F;
+    --ink:#ECE7D8;
+    --ink-dim:#96A29A;
+    --ink-faint:#68746D;
+    --green:#5FA777;
+    --green-bg:rgba(95,167,119,.14);
+    --red:#C1584C;
+    --red-bg:rgba(193,88,76,.14);
+    --blue:#5C88AC;
+    --blue-bg:rgba(92,136,172,.14);
+    --amber:#D8A34D;
+    --serif:'Source Serif 4', Georgia, serif;
+    --mono:'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+    --sans:'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    background-image:
+      radial-gradient(ellipse at top, rgba(201,162,75,.06), transparent 55%),
+      repeating-linear-gradient(115deg, rgba(255,255,255,.012) 0px, rgba(255,255,255,.012) 1px, transparent 1px, transparent 6px);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.5;
+    min-height:100vh;
+    padding-bottom:56px;
+  }
+  a{color:var(--brass);}
+  .wrap{max-width:760px;margin:0 auto;padding:20px 18px 0;}
+  header.top{
+    display:flex;align-items:baseline;justify-content:space-between;
+    padding:6px 2px 18px;border-bottom:1px solid var(--line);margin-bottom:22px;
+  }
+  .wordmark{display:flex;align-items:baseline;gap:10px;}
+  .wordmark .glyph{font-family:var(--serif);font-weight:600;font-size:26px;letter-spacing:.02em;color:var(--brass);}
+  .wordmark .sub{font-size:12.5px;color:var(--ink-dim);letter-spacing:.01em;}
+  .mic-status{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:12px;color:var(--ink-dim);}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ink-faint);transition:background .2s, box-shadow .2s;}
+  .dot.live{background:var(--green);box-shadow:0 0 8px rgba(95,167,119,.7);}
+  .dot.warn{background:var(--red);box-shadow:0 0 8px rgba(193,88,76,.6);}
+
+  .banner{
+    background:var(--red-bg);border:1px solid rgba(193,88,76,.4);border-radius:var(--radius);
+    padding:12px 14px;font-size:13.5px;color:#E9C9C4;margin-bottom:18px;line-height:1.55;
+  }
+  .banner strong{color:#fff;}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;margin-bottom:16px;
+  }
+  .card h2{
+    font-family:var(--serif);font-weight:600;font-size:16.5px;margin:0 0 3px;color:var(--ink);
+  }
+  .card .hint{font-size:12.5px;color:var(--ink-dim);margin:0 0 14px;}
+
+  /* Low A calibration */
+  .lowa-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field label{font-size:11.5px;color:var(--ink-dim);text-transform:none;}
+  input[type=number], input[type=text]{
+    background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--ink);
+    font-family:var(--mono);font-size:16px;padding:9px 10px;width:118px;
+  }
+  input[type=number]:focus, input[type=text]:focus, button:focus-visible, select:focus-visible{
+    outline:2px solid var(--brass);outline-offset:1px;
+  }
+  .btn{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+    font-family:var(--sans);font-size:13.5px;font-weight:500;padding:9px 14px;border-radius:7px;
+    cursor:pointer;transition:border-color .15s, background .15s;
+  }
+  .btn:hover{border-color:var(--brass-soft);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn.brass{background:var(--brass);border-color:var(--brass);color:#1B1405;font-weight:600;}
+  .btn.brass:hover{background:#D6AE58;}
+  .btn.ghost{background:transparent;}
+  .btn.wide{width:100%;padding:14px;font-size:15px;}
+  .btn.danger-outline{border-color:rgba(193,88,76,.5);color:#E9C9C4;}
+
+  /* Listening control */
+  .listen-block{display:flex;flex-direction:column;gap:12px;}
+  .mode-row{display:flex;gap:6px;flex-wrap:wrap;}
+  .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;}
+  .seg button{
+    background:var(--bg);border:0;color:var(--ink-dim);font-family:var(--sans);font-size:12.5px;
+    padding:7px 12px;cursor:pointer;border-right:1px solid var(--line);
+  }
+  .seg button:last-child{border-right:0;}
+  .seg button.active{background:var(--brass);color:#1B1405;font-weight:600;}
+
+  /* Hero */
+  .hero{text-align:center;padding:26px 18px 20px;}
+  .hero .note-name{font-family:var(--serif);font-weight:600;font-size:56px;line-height:1;margin:0;min-height:64px;}
+  .hero .target-line{font-family:var(--mono);font-size:12.5px;color:var(--ink-dim);margin-top:4px;}
+  .gauge-wrap{position:relative;width:280px;max-width:90%;margin:18px auto 4px;}
+  .gauge-wrap svg{width:100%;height:auto;display:block;}
+  .readout{display:flex;justify-content:center;gap:22px;margin-top:6px;flex-wrap:wrap;}
+  .readout .val{font-family:var(--mono);font-size:15px;}
+  .readout .val .num{font-size:19px;font-weight:600;}
+  .status-label{
+    font-family:var(--sans);font-weight:600;font-size:14px;letter-spacing:.02em;
+    margin-top:10px;padding:5px 14px;border-radius:20px;display:inline-block;
+  }
+  .status-label.flat{background:var(--blue-bg);color:#9FC0DA;}
+  .status-label.sharp{background:var(--red-bg);color:#E9A79C;}
+  .status-label.in-tune{background:var(--green-bg);color:#A6DABB;}
+  .status-label.idle{background:var(--panel-2);color:var(--ink-faint);}
+
+  /* tables */
+  .note-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  .note-table th{
+    text-align:left;font-weight:500;color:var(--ink-dim);font-size:11px;
+    padding:0 8px 8px;border-bottom:1px solid var(--line);
+  }
+  .note-table td{padding:9px 8px;border-bottom:1px solid var(--line);font-family:var(--mono);}
+  .note-table tr:last-child td{border-bottom:0;}
+  .note-table td.name{font-family:var(--sans);font-weight:600;}
+  .note-table tr.active-row{background:rgba(201,162,75,.07);}
+  .chip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-family:var(--sans);font-weight:600;}
+  .chip.flat{background:var(--blue-bg);color:#9FC0DA;}
+  .chip.sharp{background:var(--red-bg);color:#E9A79C;}
+  .chip.in-tune{background:var(--green-bg);color:#A6DABB;}
+  .chip.pending{background:var(--panel-2);color:var(--ink-faint);}
+
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media (max-width:620px){.two-col{grid-template-columns:1fr;}}
+
+  /* relative view */
+  .rel-row{display:grid;grid-template-columns:52px 1fr 54px;align-items:center;gap:10px;padding:6px 0;}
+  .rel-row .lbl{font-family:var(--sans);font-weight:600;font-size:13px;}
+  .rel-track{position:relative;height:8px;background:var(--panel-2);border-radius:4px;}
+  .rel-track .zero{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--line);}
+  .rel-track .bar{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--ink-faint);width:0;}
+  .rel-track .bar.flat{background:var(--blue);}
+  .rel-track .bar.sharp{background:var(--red);}
+  .rel-track .bar.in-tune{background:var(--green);}
+  .rel-row .cents{font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:right;}
+  .rel-summary{margin-top:12px;font-size:13px;color:var(--ink-dim);border-top:1px solid var(--line);padding-top:12px;}
+  .rel-summary strong{color:var(--ink);}
+
+  /* temperature / log */
+  .temp-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
+  .unit-toggle{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;height:38px;}
+  .unit-toggle button{background:var(--bg);border:0;color:var(--ink-dim);font-family:var(--mono);font-size:13px;padding:0 10px;cursor:pointer;}
+  .unit-toggle button.active{background:var(--brass);color:#1B1405;font-weight:600;}
+  .log-list{margin-top:14px;max-height:260px;overflow-y:auto;border-top:1px solid var(--line);}
+  .log-entry{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:10px 2px;border-bottom:1px solid var(--line);font-size:13px;
+  }
+  .log-entry .meta{font-family:var(--mono);font-size:12px;color:var(--ink-dim);}
+  .log-entry .del{background:none;border:0;color:var(--ink-faint);cursor:pointer;font-size:16px;line-height:1;padding:4px;}
+  .log-entry .del:hover{color:var(--red);}
+  .empty-note{color:var(--ink-faint);font-size:13px;padding:14px 0;text-align:center;}
+
+  details.adv{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:16px;}
+  details.adv summary{
+    padding:16px 18px;cursor:pointer;font-family:var(--serif);font-weight:600;font-size:15.5px;
+    list-style:none;display:flex;justify-content:space-between;align-items:center;
+  }
+  details.adv summary::-webkit-details-marker{display:none;}
+  details.adv summary::after{content:'+';font-family:var(--sans);color:var(--ink-dim);font-size:18px;}
+  details.adv[open] summary::after{content:'–';}
+  .adv-body{padding:0 18px 18px;}
+  .interval-row{display:grid;grid-template-columns:1fr 90px 60px;gap:8px;align-items:center;padding:5px 0;font-size:13px;}
+  .interval-row input{width:100%;font-size:13px;padding:6px 8px;}
+  .adv-actions{display:flex;gap:8px;margin-top:12px;}
+  .et-toggle{display:flex;align-items:center;gap:9px;margin-bottom:14px;font-size:13.5px;}
+
+  footer.site{max-width:760px;margin:26px auto 0;padding:0 18px;font-size:12px;color:var(--ink-faint);line-height:1.7;}
+  footer.site a{color:var(--brass-soft);}
+
+  ::selection{background:var(--brass);color:#1B1405;}
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="wordmark">
+      <span class="glyph">Pìob</span>
+      <span class="sub">Chanter &amp; Drone Tuner</span>
+    </div>
+    <div class="mic-status"><span class="dot" id="micDot"></span><span id="micLabel">not listening</span></div>
+  </header>
+
+  <div id="insecureBanner" class="banner" style="display:none;">
+    <strong>Microphone unavailable.</strong> This page isn't running on HTTPS or localhost, so the browser blocks microphone access. Serve these files over HTTPS (or run them on <code>localhost</code>) — see the setup notes at the bottom of the page.
+  </div>
+
+  <div id="errorBanner" class="banner" style="display:none;"></div>
+
+  <!-- Low A calibration -->
+  <section class="card">
+    <h2>Low A reference</h2>
+    <p class="hint">Every other note and drone is calculated from this. Set it by ear, or play a Low A and tap “use current pitch.”</p>
+    <div class="lowa-row">
+      <div class="field">
+        <label for="lowAInput">Low A (Hz)</label>
+        <input type="number" id="lowAInput" step="0.1" min="380" max="500" value="480.0">
+      </div>
+      <button class="btn" id="useCurrentBtn" disabled>Use current pitch</button>
+      <button class="btn ghost" id="resetLowABtn">Reset to 480.0</button>
+    </div>
+  </section>
+
+  <!-- Listen control + hero -->
+  <section class="card">
+    <div class="listen-block">
+      <button class="btn brass wide" id="listenBtn">Start tuning (enable microphone)</button>
+      <div class="mode-row">
+        <span class="hint" style="margin:0;">Listening for:</span>
+        <div class="seg" id="modeSeg">
+          <button data-mode="both" class="active">Both</button>
+          <button data-mode="chanter">Chanter</button>
+          <button data-mode="drones">Drones</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero">
+      <p class="note-name" id="noteName">—</p>
+      <p class="target-line" id="targetLine">play a note or drone to begin</p>
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 280 165" id="gaugeSvg">
+          <path id="zoneFlat" fill="none" stroke-width="14" stroke-linecap="butt"/>
+          <path id="zoneOk" fill="none" stroke-width="14" stroke-linecap="butt"/>
+          <path id="zoneSharp" fill="none" stroke-width="14" stroke-linecap="butt"/>
+          <g id="ticks"></g>
+          <line id="needle" x1="140" y1="150" x2="140" y2="35" stroke="#ECE7D8" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="140" cy="150" r="6" fill="#ECE7D8"/>
+        </svg>
+      </div>
+      <div class="readout">
+        <span class="val">freq <span class="num" id="freqVal">–</span> Hz</span>
+        <span class="val">cents <span class="num" id="centsVal">–</span></span>
+      </div>
+      <span class="status-label idle" id="statusLabel">idle</span>
+    </div>
+  </section>
+
+  <!-- Reference tables -->
+  <div class="two-col">
+    <section class="card">
+      <h2>Chanter notes</h2>
+      <p class="hint">Targets in the context of your Low A.</p>
+      <table class="note-table">
+        <thead><tr><th>Note</th><th>Target Hz</th><th>Last</th></tr></thead>
+        <tbody id="chanterTbody"></tbody>
+      </table>
+    </section>
+    <section class="card">
+      <h2>Drones</h2>
+      <p class="hint">Tenors: 1 octave below Low A. Bass: 2 octaves below.</p>
+      <table class="note-table">
+        <thead><tr><th>Drone</th><th>Target Hz</th><th>Last</th></tr></thead>
+        <tbody id="droneTbody"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- Relative view -->
+  <section class="card">
+    <h2>Whole-chanter tuning</h2>
+    <p class="hint">Play through the scale, low to high. If the bars mostly lean one way, the chanter as a whole is running sharp or flat, not just a single note.</p>
+    <div id="relRows"></div>
+    <div class="rel-summary" id="relSummary">Play each note at least once to see the pattern.</div>
+    <button class="btn ghost" id="clearRelBtn" style="margin-top:10px;">Clear readings</button>
+  </section>
+
+  <!-- Temperature / session log -->
+  <section class="card">
+    <h2>Temperature &amp; tuning log</h2>
+    <p class="hint">Reed pitch drifts with temperature and humidity. Save a snapshot to track your chanter and drones against temperature over time.</p>
+    <div class="temp-row">
+      <div class="field">
+        <label for="tempInput">Temperature</label>
+        <input type="number" id="tempInput" step="0.1" placeholder="e.g. 18.5">
+      </div>
+      <div class="unit-toggle" id="unitToggle">
+        <button data-unit="C" class="active">°C</button>
+        <button data-unit="F">°F</button>
+      </div>
+      <button class="btn brass" id="saveSnapshotBtn">Save snapshot</button>
+    </div>
+    <div class="log-list" id="logList"></div>
+  </section>
+
+  <!-- Advanced -->
+  <details class="adv">
+    <summary>Advanced: interval tuning &amp; intonation style</summary>
+    <div class="adv-body">
+      <p class="hint">The Highland pipe scale isn't equal-tempered — each note sits a characteristic number of cents away from a "piano-tuned" pitch. Defaults below use the modern-convention just-intonation intervals (harmonic 7ths for both Gs, just fourth for D). Real chanters and reeds vary — adjust any row to match yours by ear.</p>
+      <div class="et-toggle">
+        <label><input type="checkbox" id="etToggle"> Use equal temperament instead (ignore the cents offsets below)</label>
+      </div>
+      <div id="intervalRows"></div>
+      <div class="adv-actions">
+        <button class="btn ghost" id="resetIntervalsBtn">Reset to default intervals</button>
+      </div>
+    </div>
+  </details>
+
+  <details class="adv">
+    <summary>Setup &amp; permissions notes</summary>
+    <div class="adv-body" style="font-size:13px;color:var(--ink-dim);line-height:1.7;">
+      <p>• Microphone access requires <strong style="color:var(--ink);">HTTPS or localhost</strong> — it will not work if this page is opened from a plain <code>http://</code> address or a bare <code>file://</code> path in some browsers.</p>
+      <p>• The permission prompt only appears after you tap <strong style="color:var(--ink);">“Start tuning”</strong> — browsers block sites from requesting the microphone automatically.</p>
+      <p>• On iPhone/iPad, Safari shows a one-time system dialog. If you deny it, re-enable it under <strong style="color:var(--ink);">Settings → Safari → Microphone</strong> (or Settings → [this site] if installed as an app).</p>
+      <p>• You can install this as a home-screen app (share icon → “Add to Home Screen”). Mic access generally works in installed iOS web apps, but has occasionally had quirks across iOS versions — test it after installing, and keep the browser tab version as a fallback.</p>
+    </div>
+  </details>
+
+  <footer class="site">
+    Frequencies are calculated as Low A × 2^(semitones⁄12) × 2^(cents⁄1200). Pitch is detected client-side via autocorrelation on the raw microphone signal — nothing is uploaded anywhere. Your Low A, interval settings, and tuning log are stored only in this browser.
+  </footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Note & drone definitions ----------
+     x = semitones above Low A.
+     cents = just-intonation deviation from equal temperament, modern-convention
+     (harmonic 7/4 low & high G, just 4/3 D), per common piping-tuner references.
+     All are user-editable in Advanced settings. */
+  const DEFAULT_CHANTER = [
+    {id:'lowg',  name:'Low G',  x:-2, cents:-31.8},
+    {id:'lowa',  name:'Low A',  x:0,  cents:0.0},
+    {id:'b',     name:'B',      x:2,  cents:3.8},
+    {id:'c',     name:'C',      x:4,  cents:-14.0},
+    {id:'d',     name:'D',      x:5,  cents:-2.0},
+    {id:'e',     name:'E',      x:7,  cents:1.9},
+    {id:'f',     name:'F',      x:9,  cents:-16.0},
+    {id:'highg', name:'High G', x:10, cents:-31.8},
+    {id:'higha', name:'High A', x:12, cents:0.0},
+  ];
+  const DEFAULT_DRONES = [
+    {id:'tenor', name:'Tenor drones', x:-12, cents:0.0},
+    {id:'bass',  name:'Bass drone',   x:-24, cents:0.0},
+  ];
+
+  const STORE_KEYS = {
+    settings:'settings',
+    log:'temp-log'
+  };
+
+  let state = {
+    lowA: 480.0,
+    chanter: DEFAULT_CHANTER.map(n=>({...n})),
+    drones: DEFAULT_DRONES.map(n=>({...n})),
+    equalTemperament: false,
+    tempUnit:'C',
+    mode:'both', // both | chanter | drones
+  };
+
+  let lastReadings = {}; // id -> {cents, freq, ts}
+  let logEntries = [];
+
+  /* ---------- persistence ---------- */
+  async function loadSettings(){
+    try{
+      const r = await window.storage.get(STORE_KEYS.settings, false);
+      if (r && r.value){
+        const saved = JSON.parse(r.value);
+        state.lowA = typeof saved.lowA === 'number' ? saved.lowA : state.lowA;
+        state.equalTemperament = !!saved.equalTemperament;
+        state.tempUnit = saved.tempUnit || 'C';
+        state.mode = saved.mode || 'both';
+        if (Array.isArray(saved.chanter) && saved.chanter.length === DEFAULT_CHANTER.length){
+          state.chanter = saved.chanter;
+        }
+        if (Array.isArray(saved.drones) && saved.drones.length === DEFAULT_DRONES.length){
+          state.drones = saved.drones;
+        }
+      }
+    }catch(e){ /* first run, nothing saved yet */ }
+  }
+  async function saveSettings(){
+    try{
+      await window.storage.set(STORE_KEYS.settings, JSON.stringify({
+        lowA: state.lowA,
+        equalTemperament: state.equalTemperament,
+        tempUnit: state.tempUnit,
+        mode: state.mode,
+        chanter: state.chanter,
+        drones: state.drones,
+      }), false);
+    }catch(e){ console.warn('settings save failed', e); }
+  }
+  async function loadLog(){
+    try{
+      const r = await window.storage.get(STORE_KEYS.log, false);
+      if (r && r.value) logEntries = JSON.parse(r.value);
+    }catch(e){ logEntries = []; }
+  }
+  async function saveLog(){
+    try{
+      await window.storage.set(STORE_KEYS.log, JSON.stringify(logEntries.slice(0,200)), false);
+    }catch(e){ console.warn('log save failed', e); }
+  }
+
+  /* ---------- frequency math ---------- */
+  function targetFreq(def){
+    const c = state.equalTemperament ? 0 : def.cents;
+    return state.lowA * Math.pow(2, def.x/12) * Math.pow(2, c/1200);
+  }
+  function centsDiff(freq, target){
+    return 1200 * Math.log2(freq/target);
+  }
+  function statusFor(cents){
+    if (cents === null || cents === undefined) return 'pending';
+    if (Math.abs(cents) <= 5) return 'in-tune';
+    return cents > 0 ? 'sharp' : 'flat';
+  }
+  function fmt1(n){ return (Math.round(n*10)/10).toFixed(1); }
+
+  /* ---------- pitch detection (autocorrelation, parabolic interpolation) ---------- */
+  function autoCorrelate(buf, sampleRate){
+    const SIZE = buf.length;
+    let rms = 0;
+    for (let i=0;i<SIZE;i++){ rms += buf[i]*buf[i]; }
+    rms = Math.sqrt(rms/SIZE);
+    if (rms < 0.008) return {freq:-1, clarity:0}; // too quiet / no signal
+
+    // trim near-silent edges to tighten the analysis window
+    let start=0, end=SIZE-1;
+    const thresh = 0.2;
+    while (start<SIZE/2 && Math.abs(buf[start])<thresh) start++;
+    while (end>SIZE/2 && Math.abs(buf[end])<thresh) end--;
+    const b = buf.subarray(start, end);
+    const n = b.length;
+    if (n < 512) return {freq:-1, clarity:0};
+
+    // search lag range covering ~70 Hz (below bass drone) to ~1100 Hz (above high A)
+    const minLag = Math.floor(sampleRate/1100);
+    const maxLag = Math.min(n-1, Math.ceil(sampleRate/70));
+
+    const c = new Float32Array(maxLag+1);
+    for (let lag=minLag; lag<=maxLag; lag++){
+      let sum=0;
+      for (let i=0;i<n-lag;i++){ sum += b[i]*b[i+lag]; }
+      c[lag]=sum;
+    }
+    let zeroLag = 0;
+    for (let i=0;i<n;i++){ zeroLag += b[i]*b[i]; }
+
+    let bestLag=-1, bestVal=-Infinity;
+    for (let lag=minLag; lag<=maxLag; lag++){
+      if (c[lag] > bestVal){ bestVal = c[lag]; bestLag = lag; }
+    }
+    if (bestLag<=0 || zeroLag<=0) return {freq:-1, clarity:0};
+
+    // parabolic interpolation around the peak for sub-sample precision
+    const y1 = c[bestLag-1] || 0, y2 = c[bestLag], y3 = c[bestLag+1] || 0;
+    const denom = (y1 - 2*y2 + y3);
+    let shift = 0;
+    if (denom !== 0) shift = 0.5*(y1-y3)/denom;
+    const refinedLag = bestLag + shift;
+
+    const clarity = Math.max(0, Math.min(1, bestVal/zeroLag));
+    const freq = refinedLag>0 ? sampleRate/refinedLag : -1;
+    return {freq, clarity};
+  }
+
+  /* ---------- audio graph ---------- */
+  let audioCtx=null, analyser=null, micStream=null, rafId=null;
+  let freqHistory = [];
+  const HISTORY_LEN = 6;
+
+  function median(arr){
+    const a = [...arr].sort((x,y)=>x-y);
+    const m = Math.floor(a.length/2);
+    return a.length%2 ? a[m] : (a[m-1]+a[m])/2;
+  }
+
+  async function startListening(){
+    hideError();
+    if (!window.isSecureContext){
+      showInsecureBanner();
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      showError('This browser does not expose microphone access (getUserMedia unavailable).');
+      return;
+    }
+    try{
+      micStream = await navigator.mediaDevices.getUserMedia({audio:{
+        echoCancellation:false, noiseSuppression:false, autoGainControl:false
+      }});
+    }catch(err){
+      if (err && err.name === 'NotAllowedError'){
+        showError('Microphone permission was denied. Re-enable it for this site in your browser settings, then tap "Start tuning" again.');
+      } else if (err && err.name === 'NotFoundError'){
+        showError('No microphone was found on this device.');
+      } else {
+        showError('Could not access the microphone: ' + (err && err.message ? err.message : err));
+      }
+      return;
+    }
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    const source = audioCtx.createMediaStreamSource(micStream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 4096;
+    source.connect(analyser);
+
+    freqHistory = [];
+    setListeningUI(true);
+    loop();
+  }
+
+  function stopListening(){
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+    if (micStream){ micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
+    if (audioCtx){ audioCtx.close().catch(()=>{}); audioCtx=null; }
+    analyser = null;
+    setListeningUI(false);
+    resetHeroIdle();
+  }
+
+  const buf = new Float32Array(4096);
+  function loop(){
+    rafId = requestAnimationFrame(loop);
+    if (!analyser) return;
+    analyser.getFloatTimeDomainData(buf);
+    const {freq, clarity} = autoCorrelate(buf, audioCtx.sampleRate);
+    if (freq > 0 && clarity > 0.90){
+      freqHistory.push(freq);
+      if (freqHistory.length > HISTORY_LEN) freqHistory.shift();
+      const stable = median(freqHistory);
+      updateHero(stable);
+    } else {
+      freqHistory = [];
+      resetHeroListeningNoSignal();
+    }
+  }
+
+  /* ---------- matching + UI update ---------- */
+  function candidateList(){
+    if (state.mode === 'chanter') return state.chanter;
+    if (state.mode === 'drones') return state.drones;
+    return [...state.chanter, ...state.drones];
+  }
+
+  function updateHero(freq){
+    const candidates = candidateList();
+    let best=null, bestAbs=Infinity, bestCents=0, bestTarget=0;
+    for (const def of candidates){
+      const t = targetFreq(def);
+      const c = centsDiff(freq, t);
+      if (Math.abs(c) < bestAbs){ bestAbs = Math.abs(c); best = def; bestCents = c; bestTarget = t; }
+    }
+    if (!best || bestAbs > 150){
+      document.getElementById('noteName').textContent = '?';
+      document.getElementById('targetLine').textContent = 'unclear pitch — try again';
+      document.getElementById('freqVal').textContent = fmt1(freq);
+      document.getElementById('centsVal').textContent = '–';
+      setStatusLabel('idle', 'unclear');
+      setNeedle(0);
+      return;
+    }
+    lastReadings[best.id] = {cents: bestCents, freq, ts: Date.now()};
+
+    document.getElementById('noteName').textContent = best.name;
+    document.getElementById('targetLine').textContent = 'target ' + fmt1(bestTarget) + ' Hz';
+    document.getElementById('freqVal').textContent = fmt1(freq);
+    const sign = bestCents>0 ? '+' : '';
+    document.getElementById('centsVal').textContent = sign + fmt1(bestCents) + '¢';
+
+    const status = statusFor(bestCents);
+    setStatusLabel(status, status==='in-tune' ? 'in tune' : (status==='sharp' ? 'sharp' : 'flat'));
+    setNeedle(bestCents);
+    updateRowReading(best.id, bestCents);
+    renderRelative();
+  }
+
+  function resetHeroListeningNoSignal(){
+    document.getElementById('noteName').textContent = '—';
+    document.getElementById('targetLine').textContent = 'listening…';
+    document.getElementById('freqVal').textContent = '–';
+    document.getElementById('centsVal').textContent = '–';
+    setStatusLabel('idle', 'no signal');
+    setNeedle(0);
+  }
+  function resetHeroIdle(){
+    document.getElementById('noteName').textContent = '—';
+    document.getElementById('targetLine').textContent = 'play a note or drone to begin';
+    document.getElementById('freqVal').textContent = '–';
+    document.getElementById('centsVal').textContent = '–';
+    setStatusLabel('idle', 'idle');
+    setNeedle(0);
+  }
+
+  function setStatusLabel(cls, text){
+    const el = document.getElementById('statusLabel');
+    el.className = 'status-label ' + cls;
+    el.textContent = text;
+  }
+
+  /* ---------- gauge (SVG semicircle, -50..+50 cents) ---------- */
+  const CX=140, CY=150, R=105;
+  function polar(cx,cy,r,angleDeg){
+    const a = (angleDeg-180)*Math.PI/180;
+    return {x: cx + r*Math.cos(a), y: cy + r*Math.sin(a)};
+  }
+  function arcPath(cx,cy,r,a0,a1){
+    const p0 = polar(cx,cy,r,a0), p1 = polar(cx,cy,r,a1);
+    const large = (a1-a0) <= 180 ? 0 : 1;
+    return `M ${p0.x.toFixed(2)} ${p0.y.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`;
+  }
+  function centsToAngle(c){
+    const clamped = Math.max(-50, Math.min(50, c));
+    return ((clamped + 50)/100) * 180; // 0..180, left(flat)->right(sharp)
+  }
+  function initGauge(){
+    // angle 0 = far left (flat, -50c), 180 = far right (sharp, +50c)
+    document.getElementById('zoneFlat').setAttribute('d', arcPath(CX,CY,R,0,72));
+    document.getElementById('zoneFlat').setAttribute('stroke', '#5C88AC');
+    document.getElementById('zoneOk').setAttribute('d', arcPath(CX,CY,R,81,99));
+    document.getElementById('zoneOk').setAttribute('stroke', '#5FA777');
+    document.getElementById('zoneSharp').setAttribute('d', arcPath(CX,CY,R,108,180));
+    document.getElementById('zoneSharp').setAttribute('stroke', '#C1584C');
+
+    const ticks = document.getElementById('ticks');
+    ticks.innerHTML='';
+    [-50,-25,0,25,50].forEach(c=>{
+      const ang = centsToAngle(c);
+      const p1 = polar(CX,CY,R-10,ang);
+      const p2 = polar(CX,CY,R+2,ang);
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1',p1.x);line.setAttribute('y1',p1.y);
+      line.setAttribute('x2',p2.x);line.setAttribute('y2',p2.y);
+      line.setAttribute('stroke','#3A4842');line.setAttribute('stroke-width','2');
+      ticks.appendChild(line);
+    });
+  }
+  function setNeedle(cents){
+    const ang = centsToAngle(cents);
+    const tip = polar(CX,CY,R-16,ang);
+    const needle = document.getElementById('needle');
+    needle.setAttribute('x2', tip.x.toFixed(2));
+    needle.setAttribute('y2', tip.y.toFixed(2));
+    const status = statusFor(cents);
+    const color = status==='in-tune' ? '#A6DABB' : (status==='sharp' ? '#E9A79C' : '#9FC0DA');
+    needle.setAttribute('stroke', cents===0 ? '#ECE7D8' : color);
+  }
+
+  /* ---------- tables ---------- */
+  function rowStatusChip(id){
+    const r = lastReadings[id];
+    if (!r) return '<span class="chip pending">—</span>';
+    const s = statusFor(r.cents);
+    const label = s==='in-tune' ? 'in tune' : (s==='sharp' ? '+'+fmt1(r.cents)+'¢' : fmt1(r.cents)+'¢');
+    return `<span class="chip ${s}">${label}</span>`;
+  }
+  function renderTables(){
+    const cBody = document.getElementById('chanterTbody');
+    cBody.innerHTML = state.chanter.map(def=>{
+      const t = targetFreq(def);
+      return `<tr id="row-${def.id}"><td class="name">${def.name}</td><td>${fmt1(t)}</td><td>${rowStatusChip(def.id)}</td></tr>`;
+    }).join('');
+    const dBody = document.getElementById('droneTbody');
+    dBody.innerHTML = state.drones.map(def=>{
+      const t = targetFreq(def);
+      return `<tr id="row-${def.id}"><td class="name">${def.name}</td><td>${fmt1(t)}</td><td>${rowStatusChip(def.id)}</td></tr>`;
+    }).join('');
+  }
+  function updateRowReading(id, cents){
+    lastReadings[id] = lastReadings[id] || {};
+    const row = document.getElementById('row-'+id);
+    if (!row) return;
+    const cells = row.querySelectorAll('td');
+    if (cells[2]) cells[2].innerHTML = rowStatusChip(id);
+    row.classList.add('active-row');
+    clearTimeout(row._t);
+    row._t = setTimeout(()=>row.classList.remove('active-row'), 900);
+  }
+
+  /* ---------- relative (whole-chanter) view ---------- */
+  function renderRelative(){
+    const container = document.getElementById('relRows');
+    const rows = state.chanter.map(def=>{
+      const r = lastReadings[def.id];
+      const cents = r ? r.cents : null;
+      const status = statusFor(cents);
+      const pct = cents===null ? 0 : Math.max(-40, Math.min(40, cents));
+      const widthPct = Math.abs(pct)/40*50; // half-track max
+      const left = pct>=0 ? '50%' : (50 - widthPct)+'%';
+      const width = widthPct+'%';
+      const barCls = cents===null ? '' : status;
+      const centsTxt = cents===null ? '–' : ((cents>0?'+':'')+fmt1(cents)+'¢');
+      return `<div class="rel-row">
+        <span class="lbl">${def.name}</span>
+        <div class="rel-track"><div class="zero"></div><div class="bar ${barCls}" style="left:${left};width:${width};"></div></div>
+        <span class="cents">${centsTxt}</span>
+      </div>`;
+    }).join('');
+    container.innerHTML = rows;
+
+    const measured = state.chanter.map(d=>lastReadings[d.id]).filter(Boolean);
+    const summaryEl = document.getElementById('relSummary');
+    if (measured.length < 3){
+      summaryEl.textContent = 'Play each note at least once to see the pattern.';
+    } else {
+      const avg = measured.reduce((s,r)=>s+r.cents,0)/measured.length;
+      const dir = avg>3 ? 'running sharp overall' : (avg<-3 ? 'running flat overall' : 'sitting close to true, on average');
+      summaryEl.innerHTML = `Based on ${measured.length} of ${state.chanter.length} notes played — average deviation <strong>${(avg>0?'+':'')+fmt1(avg)}¢</strong>, ${dir}.`;
+    }
+  }
+
+  document.getElementById('clearRelBtn').addEventListener('click', ()=>{
+    lastReadings = {};
+    renderTables();
+    renderRelative();
+  });
+
+  /* ---------- Low A controls ---------- */
+  const lowAInput = document.getElementById('lowAInput');
+  lowAInput.addEventListener('change', ()=>{
+    const v = parseFloat(lowAInput.value);
+    if (!isNaN(v) && v>0){
+      state.lowA = Math.round(v*10)/10;
+      lowAInput.value = state.lowA.toFixed(1);
+      renderTables();
+      renderRelative();
+      renderIntervalEditor();
+      saveSettings();
+    }
+  });
+  document.getElementById('resetLowABtn').addEventListener('click', ()=>{
+    state.lowA = 480.0;
+    lowAInput.value = '480.0';
+    renderTables(); renderRelative(); saveSettings();
+  });
+  document.getElementById('useCurrentBtn').addEventListener('click', ()=>{
+    if (freqHistory.length===0) return;
+    const f = median(freqHistory);
+    state.lowA = Math.round(f*10)/10;
+    lowAInput.value = state.lowA.toFixed(1);
+    renderTables(); renderRelative(); saveSettings();
+  });
+
+  /* ---------- mode segment ---------- */
+  document.getElementById('modeSeg').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-mode]');
+    if (!btn) return;
+    document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.mode = btn.dataset.mode;
+    saveSettings();
+  });
+
+  /* ---------- listen button ---------- */
+  let listening = false;
+  function setListeningUI(on){
+    listening = on;
+    const btn = document.getElementById('listenBtn');
+    btn.textContent = on ? 'Stop tuning' : 'Start tuning (enable microphone)';
+    const dot = document.getElementById('micDot');
+    const label = document.getElementById('micLabel');
+    dot.className = 'dot' + (on ? ' live' : '');
+    label.textContent = on ? 'listening' : 'not listening';
+    document.getElementById('useCurrentBtn').disabled = !on;
+  }
+  document.getElementById('listenBtn').addEventListener('click', ()=>{
+    if (listening) stopListening(); else startListening();
+  });
+
+  function showError(msg){
+    const el = document.getElementById('errorBanner');
+    el.innerHTML = '<strong>Heads up —</strong> ' + msg;
+    el.style.display = 'block';
+  }
+  function hideError(){ document.getElementById('errorBanner').style.display='none'; }
+  function showInsecureBanner(){ document.getElementById('insecureBanner').style.display='block'; }
+
+  /* ---------- temperature / snapshot log ---------- */
+  document.getElementById('unitToggle').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-unit]');
+    if (!btn) return;
+    document.querySelectorAll('#unitToggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.tempUnit = btn.dataset.unit;
+    saveSettings();
+  });
+
+  document.getElementById('saveSnapshotBtn').addEventListener('click', async ()=>{
+    const raw = document.getElementById('tempInput').value;
+    const temp = raw==='' ? null : parseFloat(raw);
+    const snapshot = state.chanter.concat(state.drones).map(def=>{
+      const r = lastReadings[def.id];
+      return {id:def.id, name:def.name, cents: r? Math.round(r.cents*10)/10 : null};
+    }).filter(s=>s.cents!==null);
+    const entry = {
+      ts: Date.now(),
+      temp: (temp!==null && !isNaN(temp)) ? Math.round(temp*10)/10 : null,
+      unit: state.tempUnit,
+      lowA: state.lowA,
+      readings: snapshot
+    };
+    logEntries.unshift(entry);
+    await saveLog();
+    renderLog();
+  });
+
+  function renderLog(){
+    const list = document.getElementById('logList');
+    if (logEntries.length===0){
+      list.innerHTML = '<p class="empty-note">No snapshots saved yet.</p>';
+      return;
+    }
+    list.innerHTML = logEntries.map((e,i)=>{
+      const d = new Date(e.ts);
+      const dateStr = d.toLocaleDateString(undefined,{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+      const tempStr = e.temp!==null ? fmt1(e.temp)+'°'+e.unit : 'no temp';
+      const avg = e.readings.length ? (e.readings.reduce((s,r)=>s+r.cents,0)/e.readings.length) : null;
+      const avgStr = avg!==null ? ((avg>0?'+':'')+fmt1(avg)+'¢ avg, '+e.readings.length+' notes') : 'no readings';
+      return `<div class="log-entry">
+        <span>${dateStr} — ${tempStr}<br><span class="meta">Low A ${fmt1(e.lowA)} Hz · ${avgStr}</span></span>
+        <button class="del" data-idx="${i}" title="Delete">×</button>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.del').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        logEntries.splice(parseInt(btn.dataset.idx,10),1);
+        await saveLog();
+        renderLog();
+      });
+    });
+  }
+
+  /* ---------- advanced: interval editor ---------- */
+  function renderIntervalEditor(){
+    const container = document.getElementById('intervalRows');
+    const all = [...state.chanter.map(d=>({def:d,group:'chanter'})), ...state.drones.map(d=>({def:d,group:'drones'}))];
+    container.innerHTML = all.map(({def})=>{
+      return `<div class="interval-row">
+        <span>${def.name} <span style="color:var(--ink-faint);">(${fmt1(targetFreq(def))} Hz)</span></span>
+        <input type="number" step="0.1" value="${def.cents.toFixed(1)}" data-id="${def.id}" data-field="cents">
+        <span style="color:var(--ink-faint);">¢</span>
+      </div>`;
+    }).join('');
+    container.querySelectorAll('input[data-field=cents]').forEach(inp=>{
+      inp.addEventListener('change', ()=>{
+        const id = inp.dataset.id;
+        const v = parseFloat(inp.value);
+        if (isNaN(v)) return;
+        const target = state.chanter.find(d=>d.id===id) || state.drones.find(d=>d.id===id);
+        if (target){ target.cents = Math.round(v*10)/10; }
+        renderTables(); renderRelative(); renderIntervalEditor(); saveSettings();
+      });
+    });
+  }
+  document.getElementById('resetIntervalsBtn').addEventListener('click', ()=>{
+    state.chanter = DEFAULT_CHANTER.map(n=>({...n}));
+    state.drones = DEFAULT_DRONES.map(n=>({...n}));
+    renderTables(); renderRelative(); renderIntervalEditor(); saveSettings();
+  });
+  document.getElementById('etToggle').addEventListener('change', (e)=>{
+    state.equalTemperament = e.target.checked;
+    renderTables(); renderRelative(); renderIntervalEditor(); saveSettings();
+  });
+
+  /* ---------- service worker (best-effort, ignored on insecure origins) ---------- */
+  if ('serviceWorker' in navigator && window.isSecureContext){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js').catch(()=>{ /* fine if this fails, e.g. opened from disk */ });
+    });
+  }
+
+  /* ---------- boot ---------- */
+  async function boot(){
+    if (!window.isSecureContext) showInsecureBanner();
+    await loadSettings();
+    await loadLog();
+    lowAInput.value = state.lowA.toFixed(1);
+    document.getElementById('etToggle').checked = state.equalTemperament;
+    document.querySelectorAll('#modeSeg button').forEach(b=>{
+      b.classList.toggle('active', b.dataset.mode===state.mode);
+    });
+    document.querySelectorAll('#unitToggle button').forEach(b=>{
+      b.classList.toggle('active', b.dataset.unit===state.tempUnit);
+    });
+    initGauge();
+    setNeedle(0);
+    renderTables();
+    renderRelative();
+    renderIntervalEditor();
+    renderLog();
+  }
+  boot();
+
+  window.addEventListener('beforeunload', ()=>{ if (listening) stopListening(); });
+})();
+</script>
+</body>
+</html>
