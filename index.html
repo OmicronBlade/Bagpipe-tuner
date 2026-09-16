@@ -82,9 +82,14 @@
   .lowa-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
   .field{display:flex;flex-direction:column;gap:5px;}
   .field label{font-size:11.5px;color:var(--ink-dim);text-transform:none;}
-  input[type=number], input[type=text]{
+  input[type=number], input[type=text], select{
     background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--ink);
     font-family:var(--mono);font-size:16px;padding:9px 10px;width:118px;
+  }
+  select{width:100%;font-family:var(--sans);font-size:14px;appearance:none;
+    background-image:linear-gradient(45deg, transparent 50%, var(--ink-dim) 50%), linear-gradient(135deg, var(--ink-dim) 50%, transparent 50%);
+    background-position:calc(100% - 18px) center, calc(100% - 13px) center;background-size:5px 5px;background-repeat:no-repeat;
+    padding-right:32px;
   }
   input[type=number]:focus, input[type=text]:focus, button:focus-visible, select:focus-visible{
     outline:2px solid var(--brass);outline-offset:1px;
@@ -142,9 +147,9 @@
   .note-table{width:100%;border-collapse:collapse;font-size:13.5px;}
   .note-table th{
     text-align:left;font-weight:500;color:var(--ink-dim);font-size:11px;
-    padding:0 8px 8px;border-bottom:1px solid var(--line);
+    padding:0 6px 8px;border-bottom:1px solid var(--line);
   }
-  .note-table td{padding:9px 8px;border-bottom:1px solid var(--line);font-family:var(--mono);}
+  .note-table td{padding:9px 6px;border-bottom:1px solid var(--line);font-family:var(--mono);}
   .note-table tr:last-child td{border-bottom:0;}
   .note-table td.name{font-family:var(--sans);font-weight:600;}
   .note-table tr.active-row{background:rgba(201,162,75,.07);}
@@ -154,6 +159,22 @@
   .chip.in-tune{background:var(--green-bg);color:#A6DABB;}
   .chip.pending{background:var(--panel-2);color:var(--ink-faint);}
 
+  .play-btn{
+    width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--panel-2);
+    color:var(--brass);cursor:pointer;font-size:10px;display:inline-flex;align-items:center;justify-content:center;
+    padding:0;line-height:1;
+  }
+  .play-btn:hover{border-color:var(--brass-soft);}
+  .play-btn.playing{background:var(--brass);color:#1B1405;border-color:var(--brass);}
+
+  .spark{width:56px;height:18px;display:block;overflow:visible;}
+  .spark-zero{stroke:var(--line);stroke-width:1;}
+  .spark-line{fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;stroke:var(--ink-faint);}
+
+  .tone-row{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
+  .tone-row input[type=range]{flex:1;accent-color:var(--brass);}
+  body.hide-tone .play-col{display:none;}
+
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
   @media (max-width:620px){.two-col{grid-template-columns:1fr;}}
 
@@ -161,12 +182,25 @@
   .rel-row{display:grid;grid-template-columns:52px 1fr 54px;align-items:center;gap:10px;padding:6px 0;}
   .rel-row .lbl{font-family:var(--sans);font-weight:600;font-size:13px;}
   .rel-track{position:relative;height:8px;background:var(--panel-2);border-radius:4px;}
+  .rel-track .tuned-band{position:absolute;top:0;bottom:0;background:var(--green-bg);border-radius:4px;pointer-events:none;}
   .rel-track .zero{position:absolute;left:50%;top:-3px;bottom:-3px;width:1px;background:var(--line);}
   .rel-track .bar{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--ink-faint);width:0;}
   .rel-track .bar.flat{background:var(--blue);}
   .rel-track .bar.sharp{background:var(--red);}
   .rel-track .bar.in-tune{background:var(--green);}
   .rel-row .cents{font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:right;}
+
+  .tune-band-row{display:flex;align-items:center;gap:10px;margin:2px 0 14px;}
+  .tune-band-row label{font-size:12.5px;color:var(--ink-dim);white-space:nowrap;}
+  .tune-band-row input[type=range]{flex:1;accent-color:var(--brass);}
+
+  .rel-scale{display:grid;grid-template-columns:52px 1fr 54px;align-items:center;gap:10px;padding-bottom:4px;margin-bottom:2px;}
+  .rel-scale .axis{position:relative;height:16px;}
+  .rel-scale .axis .tuned-band{position:absolute;top:0;bottom:6px;background:var(--green-bg);border-radius:3px;}
+  .rel-scale .axis .tick{position:absolute;top:0;width:1px;height:5px;background:var(--line);}
+  .rel-scale .axis .tick-label{
+    position:absolute;top:6px;transform:translateX(-50%);font-family:var(--mono);font-size:9.5px;color:var(--ink-faint);
+  }
   .rel-summary{margin-top:12px;font-size:13px;color:var(--ink-dim);border-top:1px solid var(--line);padding-top:12px;}
   .rel-summary strong{color:var(--ink);}
 
@@ -230,7 +264,7 @@
 
   <!-- Low A calibration -->
   <section class="card">
-    <h2>Low A reference</h2>
+    <h2>Low A Reference</h2>
     <p class="hint">Every other note and drone is calculated from this. Set it by ear, or start tuning, tap “use current pitch,” and play a steady Low A — it gives you 5 seconds to get ready, then samples for 3 seconds.</p>
     <div class="lowa-row">
       <div class="field">
@@ -238,7 +272,7 @@
         <input type="number" id="lowAInput" step="0.1" min="380" max="500" value="480.0">
       </div>
       <button class="btn" id="useCurrentBtn" disabled>Use current pitch</button>
-      <button class="btn ghost" id="resetLowABtn">Reset to 480.0</button>
+      <button class="btn ghost" id="resetLowABtn">Reset to 480.0 Hz</button>
     </div>
     <p class="hint" id="calibrationStatus" style="margin:10px 0 0;"></p>
   </section>
@@ -246,18 +280,18 @@
   <!-- Listen control + hero -->
   <section class="card">
     <div class="listen-block">
-      <button class="btn brass wide" id="listenBtn">Start tuning (enable microphone)</button>
+      <button class="btn brass wide" id="listenBtn">Start Tuning (Enable Microphone)</button>
 
       <div class="level-row">
         <span class="hint" style="margin:0;white-space:nowrap;">Input level</span>
         <div class="level-track"><div class="level-bar" id="levelBar"></div></div>
       </div>
-      <p class="hint" id="levelHint" style="margin:2px 0 0;">Play a note — the bar should sit comfortably past the halfway mark. Barely moving? Raise sensitivity below or move closer.</p>
+      <p class="hint" id="levelHint" style="margin:2px 0 0;">Play a note — the bar should sit comfortably past the halfway mark. <br>Barely moving? Raise sensitivity below or move closer.</p>
 
       <div class="sens-row">
-        <label for="sensitivitySlider" class="hint" style="margin:0;">Mic sensitivity</label>
-        <input type="range" id="sensitivitySlider" min="1" max="10" step="1" value="4">
-        <span class="mono-val" id="sensitivityVal">4×</span>
+        <label for="sensitivitySlider" class="hint" style="margin:0;">Mic Sensitivity</label>
+        <input type="range" id="sensitivitySlider" min="1" max="10" step="1" value="2">
+        <span class="mono-val" id="sensitivityVal">2×</span>
       </div>
 
       <div class="mode-row">
@@ -272,15 +306,37 @@
 
     <div class="hero">
       <p class="note-name" id="noteName">—</p>
-      <p class="target-line" id="targetLine">play a note or drone to begin</p>
+      <p class="target-line" id="targetLine">Play a note or strike drones to begin</p>
       <div class="gauge-wrap">
-        <svg viewBox="0 0 280 165" id="gaugeSvg">
-          <path id="zoneFlat" fill="none" stroke-width="14" stroke-linecap="butt"/>
-          <path id="zoneOk" fill="none" stroke-width="14" stroke-linecap="butt"/>
-          <path id="zoneSharp" fill="none" stroke-width="14" stroke-linecap="butt"/>
+        <svg viewBox="0 0 280 172" id="gaugeSvg">
+          <defs>
+            <radialGradient id="faceGrad" cx="50%" cy="103%" r="80%">
+              <stop offset="0%" stop-color="#212E29"/>
+              <stop offset="100%" stop-color="#111917"/>
+            </radialGradient>
+            <radialGradient id="pivotGrad" cx="35%" cy="30%" r="75%">
+              <stop offset="0%" stop-color="#F6E7C4"/>
+              <stop offset="55%" stop-color="#C9A24B"/>
+              <stop offset="100%" stop-color="#836A38"/>
+            </radialGradient>
+            <filter id="needleShadow" x="-60%" y="-60%" width="220%" height="220%">
+              <feDropShadow dx="0" dy="1.4" stdDeviation="1.4" flood-color="#000000" flood-opacity="0.55"/>
+            </filter>
+            <filter id="okGlow" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur stdDeviation="2.6" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <path id="faceBg" fill="url(#faceGrad)"/>
+          <path id="bezel" fill="none" stroke="#333F3A" stroke-width="1.5"/>
+          <path id="zoneFlat" fill="none" stroke-width="12" stroke-linecap="round"/>
+          <path id="zoneOk" fill="none" stroke-width="12" stroke-linecap="round"/>
+          <path id="zoneSharp" fill="none" stroke-width="12" stroke-linecap="round"/>
           <g id="ticks"></g>
-          <line id="needle" x1="140" y1="150" x2="140" y2="35" stroke="#ECE7D8" stroke-width="3" stroke-linecap="round"/>
-          <circle cx="140" cy="150" r="6" fill="#ECE7D8"/>
+          <g id="tickLabels"></g>
+          <line id="needle" x1="140" y1="150" x2="140" y2="35" stroke="#ECE7D8" stroke-width="3.5" stroke-linecap="round" filter="url(#needleShadow)"/>
+          <circle id="pivotRing" cx="140" cy="150" r="9.5" fill="none" stroke="#836A38" stroke-width="1.5"/>
+          <circle id="pivot" cx="140" cy="150" r="7" fill="url(#pivotGrad)"/>
         </svg>
       </div>
       <div class="readout">
@@ -295,34 +351,46 @@
   <div class="two-col">
     <section class="card">
       <h2>Chanter notes</h2>
-      <p class="hint">Targets in the context of your Low A.</p>
+      <p class="hint">Targets in the context of your Low A.<br><span class="play-col">Tap ▶ to hear a reference tone.</span></p>
       <table class="note-table">
-        <thead><tr><th>Note</th><th>Target Hz</th><th>Last</th></tr></thead>
+        <thead><tr><th>Note</th><th>Target Hz</th><th>Last</th><th>Trend</th><th class="play-col"></th></tr></thead>
         <tbody id="chanterTbody"></tbody>
       </table>
     </section>
     <section class="card">
       <h2>Drones</h2>
-      <p class="hint">Tenors: 1 octave below Low A. Bass: 2 octaves below.</p>
+      <p class="hint">Tenors: 1 octave below LA.<br>Bass: 2 octaves below LA.</p>
       <table class="note-table">
-        <thead><tr><th>Drone</th><th>Target Hz</th><th>Last</th></tr></thead>
+        <thead><tr><th>Drone</th><th>Target Hz</th><th>Last</th><th>Trend</th><th class="play-col"></th></tr></thead>
         <tbody id="droneTbody"></tbody>
       </table>
+      <div class="tone-row play-col">
+        <span class="hint" style="margin:0;white-space:nowrap;">Tone volume</span>
+        <input type="range" id="toneVolumeSlider" min="0" max="1" step="0.05" value="0.35">
+        <button class="btn ghost" id="stopToneBtn">Stop</button>
+      </div>
     </section>
   </div>
+
 
   <!-- Relative view -->
   <section class="card">
     <h2>Whole-chanter tuning</h2>
     <p class="hint">Play through the scale, low to high. If the bars mostly lean one way, the chanter as a whole is running sharp or flat, not just a single note.</p>
+    <div class="tune-band-row">
+      <label for="inTuneSlider">Tuned band</label>
+      <input type="range" id="inTuneSlider" min="1" max="20" step="1" value="5">
+      <span class="mono-val" id="inTuneVal">±5.0¢</span>
+    </div>
+    <div id="relScale" class="rel-scale"></div>
     <div id="relRows"></div>
     <div class="rel-summary" id="relSummary">Play each note at least once to see the pattern.</div>
-    <button class="btn ghost" id="clearRelBtn" style="margin-top:10px;">Clear readings</button>
+    <button class="btn ghost" id="clearRelBtn" style="margin-top:10px;">Clear Readings</button>
   </section>
 
   <!-- Temperature / session log -->
   <section class="card">
-    <h2>Temperature &amp; tuning log</h2>
+    <h2>Temperature &amp; Tuning log</h2>
     <p class="hint">Reed pitch drifts with temperature and humidity. Save a snapshot to track your chanter and drones against temperature over time.</p>
     <div class="temp-row">
       <div class="field">
@@ -333,30 +401,52 @@
         <button data-unit="C" class="active">°C</button>
         <button data-unit="F">°F</button>
       </div>
-      <button class="btn brass" id="saveSnapshotBtn">Save snapshot</button>
+      <button class="btn brass" id="saveSnapshotBtn">Save Snapshot</button>
     </div>
     <div class="log-list" id="logList"></div>
+    <button class="btn ghost" id="exportCsvBtn" style="margin-top:12px;" disabled>Export CSV</button>
   </section>
 
   <!-- Advanced -->
   <details class="adv">
-    <summary>Advanced: interval tuning &amp; intonation style</summary>
+    <summary>Advanced: Intonation style &amp; Detection tuning</summary>
     <div class="adv-body">
-      <p class="hint">The Highland pipe scale isn't equal-tempered — each note sits a characteristic number of cents away from a "piano-tuned" pitch. Defaults below use the modern-convention just-intonation intervals (harmonic 7ths for both Gs, just fourth for D). Real chanters and reeds vary — adjust any row to match yours by ear.</p>
-      <div class="et-toggle">
-        <label><input type="checkbox" id="etToggle"> Use equal temperament instead (ignore the cents offsets below)</label>
+      <p class="hint">The Highland pipe scale isn't equal-tempered — each note sits a characteristic number of cents away from a "piano-tuned" pitch, and pipers don't all agree on the exact amount. Pick a style below as a starting point, or edit any row directly — real chanters and reeds vary.</p>
+
+      <div class="field" style="margin-bottom:6px;">
+        <label for="styleSelect">Intonation style</label>
+        <select id="styleSelect">
+          <option value="harmonic">Modern (Harmonic G, Just D)</option>
+          <option value="just">Just intonation (Pure ratios)</option>
+          <option value="macneill">MacNeill (1950s survey)</option>
+          <option value="equal">Equal Temperament</option>
+        </select>
       </div>
+      <p class="hint" id="styleDesc" style="margin:0 0 14px;"></p>
+
       <div id="intervalRows"></div>
       <div class="adv-actions">
         <button class="btn ghost" id="resetIntervalsBtn">Reset to default intervals</button>
+      </div>
+
+      <div class="field" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
+        <label for="dwellSlider">Minimum hold before a note counts toward tables/averages</label>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <input type="range" id="dwellSlider" min="100" max="800" step="50" value="300" style="flex:1;accent-color:var(--brass);">
+          <span class="mono-val" id="dwellVal">300ms</span>
+        </div>
+      </div>
+      <p class="hint" style="margin:6px 0 0;">Short or misidentified blips while running through the scale won't get recorded until a note has been held at least this long. The live needle above still responds instantly — this only gates what's saved to the tables and the whole-chanter view.</p>
+
+      <div class="et-toggle" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);margin-bottom:0;">
+        <label><input type="checkbox" id="tonePlaybackToggle"> Show reference tone playback (▶ buttons, volume, stop)</label>
       </div>
     </div>
   </details>
 
   <details class="adv">
-    <summary>Setup &amp; permissions notes</summary>
+    <summary>Setup &amp; Permissions notes</summary>
     <div class="adv-body" style="font-size:13px;color:var(--ink-dim);line-height:1.7;">
-      <p>• Microphone access requires <strong style="color:var(--ink);">HTTPS or localhost</strong> — it will not work if this page is opened from a plain <code>http://</code> address or a bare <code>file://</code> path in some browsers.</p>
       <p>• The permission prompt only appears after you tap <strong style="color:var(--ink);">“Start tuning”</strong> — browsers block sites from requesting the microphone automatically.</p>
       <p>• On iPhone/iPad, Safari shows a one-time system dialog. If you deny it, re-enable it under <strong style="color:var(--ink);">Settings → Safari → Microphone</strong> (or Settings → [this site] if installed as an app).</p>
       <p>• You can install this as a home-screen app (share icon → “Add to Home Screen”). Mic access generally works in installed iOS web apps, but has occasionally had quirks across iOS versions — test it after installing, and keep the browser tab version as a fallback.</p>
@@ -373,10 +463,9 @@
   "use strict";
 
   /* ---------- Note & drone definitions ----------
-     x = semitones above Low A.
-     cents = just-intonation deviation from equal temperament, modern-convention
-     (harmonic 7/4 low & high G, just 4/3 D), per common piping-tuner references.
-     All are user-editable in Advanced settings. */
+     x = semitones above Low A. "cents" below is the harmonic/modern-convention
+     default; see INTONATION_STYLES for the documented alternates. All are
+     user-editable in Advanced settings regardless of style chosen. */
   const DEFAULT_CHANTER = [
     {id:'lowg',  name:'Low G',  x:-2, cents:-31.8},
     {id:'lowa',  name:'Low A',  x:0,  cents:0.0},
@@ -393,6 +482,46 @@
     {id:'bass',  name:'Bass drone',   x:-24, cents:0.0},
   ];
 
+  /* Published Highland-pipe intonation schemes differ mainly in how Low/High G
+     and D are tuned — B, C, E and F are consistently documented the same way
+     across sources. Drones are always pure octaves (0c) in every style. */
+  const INTONATION_STYLES = {
+    harmonic: {
+      label: 'Modern (harmonic G, just D)',
+      desc: 'Harmonic minor-seventh Gs (7/4, 7/8) with a just fourth for D (4/3) — the combination most piping tutors and tuner presets use today.',
+      overrides: {lowg:-31.8, highg:-31.8, d:-2.0}
+    },
+    just: {
+      label: 'Just intonation (pure ratios)',
+      desc: 'Both Gs tuned to the simpler just minor seventh (16/9) instead of the harmonic 7th, with the same just fourth D. A gentler, slightly less flat G.',
+      overrides: {lowg:-4.0, highg:-4.0, d:-2.0}
+    },
+    macneill: {
+      label: 'MacNeill (1950s survey)',
+      desc: 'Seumas MacNeill\u2019s measurements of working pipers in the early 1950s — a notably sharp D (27/20) and sharp G (9/5), the opposite direction from the modern convention.',
+      overrides: {lowg:17.2, highg:17.2, d:19.1}
+    },
+    equal: {
+      label: 'Equal temperament',
+      desc: 'Every note locked to standard 12-tone equal temperament (0c everywhere) — useful for cross-checking against a regular chromatic tuner, not how the pipe scale is actually played.',
+      overrides: {lowg:0, highg:0, d:0, b:0, c:0, e:0, f:0, lowa:0, higha:0}
+    }
+  };
+  function applyIntonationStyle(styleKey){
+    const style = INTONATION_STYLES[styleKey] || INTONATION_STYLES.harmonic;
+    state.intonationStyle = styleKey;
+    state.chanter.forEach(def=>{
+      if (styleKey === 'equal'){ def.cents = 0; return; }
+      if (Object.prototype.hasOwnProperty.call(style.overrides, def.id)){
+        def.cents = style.overrides[def.id];
+      } else {
+        const base = DEFAULT_CHANTER.find(d=>d.id===def.id);
+        if (base) def.cents = base.cents;
+      }
+    });
+    state.drones.forEach(def=>{ def.cents = 0; }); // drones are always pure octaves
+  }
+
   const STORE_KEYS = {
     settings:'settings',
     log:'temp-log'
@@ -402,12 +531,16 @@
     lowA: 480.0,
     chanter: DEFAULT_CHANTER.map(n=>({...n})),
     drones: DEFAULT_DRONES.map(n=>({...n})),
-    equalTemperament: false,
+    intonationStyle: 'harmonic',
     tempUnit:'C',
     mode:'both', // both | chanter | drones
-    sensitivity: 4,          // mic input gain multiplier, 1-10
+    sensitivity: 2,          // mic input gain multiplier, 1-10
     silenceThreshold: 0.004, // rms below this = "no signal"
     clarityThreshold: 0.85,  // autocorrelation peak/zero-lag ratio required to trust a reading
+    dwellMs: 300,            // a note must be held this long before it counts toward tables/averages
+    toneVolume: 0.35,        // reference-tone playback volume, 0-1
+    showTonePlayback: false,  // whether the ▶ buttons/volume/stop controls are shown
+    inTuneThreshold: 5,       // ± cents considered "in tune", everywhere status is shown
   };
 
   let lastReadings = {}; // id -> {cents, freq, ts}
@@ -420,12 +553,16 @@
       if (r && r.value){
         const saved = JSON.parse(r.value);
         state.lowA = typeof saved.lowA === 'number' ? saved.lowA : state.lowA;
-        state.equalTemperament = !!saved.equalTemperament;
+        state.intonationStyle = saved.intonationStyle || (saved.equalTemperament ? 'equal' : 'harmonic');
         state.tempUnit = saved.tempUnit || 'C';
         state.mode = saved.mode || 'both';
         state.sensitivity = typeof saved.sensitivity === 'number' ? saved.sensitivity : state.sensitivity;
         state.silenceThreshold = typeof saved.silenceThreshold === 'number' ? saved.silenceThreshold : state.silenceThreshold;
         state.clarityThreshold = typeof saved.clarityThreshold === 'number' ? saved.clarityThreshold : state.clarityThreshold;
+        state.dwellMs = typeof saved.dwellMs === 'number' ? saved.dwellMs : state.dwellMs;
+        state.toneVolume = typeof saved.toneVolume === 'number' ? saved.toneVolume : state.toneVolume;
+        state.showTonePlayback = typeof saved.showTonePlayback === 'boolean' ? saved.showTonePlayback : state.showTonePlayback;
+        state.inTuneThreshold = typeof saved.inTuneThreshold === 'number' ? saved.inTuneThreshold : state.inTuneThreshold;
         if (Array.isArray(saved.chanter) && saved.chanter.length === DEFAULT_CHANTER.length){
           state.chanter = saved.chanter;
         }
@@ -439,7 +576,7 @@
     try{
       await window.storage.set(STORE_KEYS.settings, JSON.stringify({
         lowA: state.lowA,
-        equalTemperament: state.equalTemperament,
+        intonationStyle: state.intonationStyle,
         tempUnit: state.tempUnit,
         mode: state.mode,
         chanter: state.chanter,
@@ -447,6 +584,10 @@
         sensitivity: state.sensitivity,
         silenceThreshold: state.silenceThreshold,
         clarityThreshold: state.clarityThreshold,
+        dwellMs: state.dwellMs,
+        toneVolume: state.toneVolume,
+        showTonePlayback: state.showTonePlayback,
+        inTuneThreshold: state.inTuneThreshold,
       }), false);
     }catch(e){ console.warn('settings save failed', e); }
   }
@@ -464,15 +605,14 @@
 
   /* ---------- frequency math ---------- */
   function targetFreq(def){
-    const c = state.equalTemperament ? 0 : def.cents;
-    return state.lowA * Math.pow(2, def.x/12) * Math.pow(2, c/1200);
+    return state.lowA * Math.pow(2, def.x/12) * Math.pow(2, def.cents/1200);
   }
   function centsDiff(freq, target){
     return 1200 * Math.log2(freq/target);
   }
   function statusFor(cents){
     if (cents === null || cents === undefined) return 'pending';
-    if (Math.abs(cents) <= 5) return 'in-tune';
+    if (Math.abs(cents) <= state.inTuneThreshold) return 'in-tune';
     return cents > 0 ? 'sharp' : 'flat';
   }
   function fmt1(n){ return (Math.round(n*10)/10).toFixed(1); }
@@ -544,6 +684,7 @@
 
   async function startListening(){
     hideError();
+    stopTone();
     if (!window.isSecureContext){
       showInsecureBanner();
       return;
@@ -586,6 +727,9 @@
     gainNode.connect(analyser);
 
     freqHistory = [];
+    lastGoodTs = 0;
+    trackedNoteId = null;
+    resetDwellTracking();
     setListeningUI(true);
     loop();
   }
@@ -603,6 +747,12 @@
   }
 
   const buf = new Float32Array(2048);
+  const NO_SIGNAL_GRACE_MS = 400; // ride out brief dropouts instead of flickering to "no signal"
+  const SMOOTH_ALPHA = 0.22;      // needle/readout easing — lower = smoother, higher = snappier
+  let lastGoodTs = 0;
+  let trackedNoteId = null;   // note currently being displayed (for snap-on-change)
+  let smoothedCents = 0;
+
   function loop(){
     rafId = requestAnimationFrame(loop);
     if (!analyser) return;
@@ -614,8 +764,12 @@
       if (freqHistory.length > HISTORY_LEN) freqHistory.shift();
       const stable = median(freqHistory);
       updateHero(stable);
-    } else {
+    } else if (performance.now() - lastGoodTs > NO_SIGNAL_GRACE_MS){
+      // only drop to "no signal" after a real gap — a single missed frame
+      // mid-note shouldn't make the needle jump back to center and out again
       freqHistory = [];
+      trackedNoteId = null;
+      resetDwellTracking();
       resetHeroListeningNoSignal();
     }
   }
@@ -628,11 +782,141 @@
     bar.classList.toggle('below', (rms||0) < state.silenceThreshold);
   }
 
+  /* ---------- reference tone playback ----------
+     A small additive synth (a few harmonics at falling amplitude) rather
+     than a plain sine — gives something closer to a reed's character to
+     tune against by ear. Runs on its own AudioContext, independent of the
+     mic/detection graph, so it works even if you're not "listening". */
+  let playbackCtx = null, toneNodes = null, currentPlayingId = null;
+
+  function ensurePlaybackCtx(){
+    if (!playbackCtx) playbackCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (playbackCtx.state === 'suspended') playbackCtx.resume();
+    return playbackCtx;
+  }
+
+  function stopTone(){
+    if (toneNodes){
+      const ctx = playbackCtx;
+      const now = ctx.currentTime;
+      const {master, oscillators} = toneNodes;
+      master.gain.cancelScheduledValues(now);
+      master.gain.setValueAtTime(master.gain.value, now);
+      master.gain.linearRampToValueAtTime(0.0001, now + 0.06);
+      setTimeout(()=>{ oscillators.forEach(o=>{ try{ o.stop(); }catch(e){} }); }, 100);
+      toneNodes = null;
+    }
+    currentPlayingId = null;
+    updatePlayButtonsUI();
+  }
+
+  function playTone(id, freq){
+    stopTone();
+    let ctx;
+    try{
+      ctx = ensurePlaybackCtx();
+    }catch(err){
+      showError('Could not start audio playback: ' + (err && err.message ? err.message : err));
+      return;
+    }
+    const harmonics = [ {mult:1, amp:1.0}, {mult:2, amp:0.5}, {mult:3, amp:0.30}, {mult:4, amp:0.16}, {mult:5, amp:0.09} ];
+    const master = ctx.createGain();
+    master.gain.value = 0.0001;
+    master.connect(ctx.destination);
+    const oscillators = harmonics.map(h=>{
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq * h.mult;
+      const g = ctx.createGain();
+      g.gain.value = h.amp;
+      osc.connect(g);
+      g.connect(master);
+      osc.start();
+      return osc;
+    });
+    const now = ctx.currentTime;
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.linearRampToValueAtTime(Math.max(0.0001, state.toneVolume), now + 0.08);
+    toneNodes = {master, oscillators};
+    currentPlayingId = id;
+    updatePlayButtonsUI();
+    // pause live detection while a reference tone plays, so the mic can't
+    // pick the speaker up and mistake it for an instrument reading
+    trackedNoteId = null;
+    resetDwellTracking();
+    resetHeroListeningNoSignal();
+  }
+
+  function updatePlayButtonsUI(){
+    document.querySelectorAll('.play-btn').forEach(btn=>{
+      const on = btn.dataset.id === currentPlayingId;
+      btn.classList.toggle('playing', on);
+      btn.textContent = on ? '■' : '▶';
+    });
+  }
+
+  document.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.play-btn');
+    if (!btn) return;
+    const id = btn.dataset.id, freq = parseFloat(btn.dataset.freq);
+    if (currentPlayingId === id) stopTone();
+    else if (freq > 0) playTone(id, freq);
+  });
+
+  const toneVolumeSlider = document.getElementById('toneVolumeSlider');
+  toneVolumeSlider.addEventListener('input', ()=>{
+    state.toneVolume = parseFloat(toneVolumeSlider.value);
+    if (toneNodes && playbackCtx){
+      toneNodes.master.gain.setTargetAtTime(Math.max(0.0001, state.toneVolume), playbackCtx.currentTime, 0.02);
+    }
+  });
+  toneVolumeSlider.addEventListener('change', saveSettings);
+  document.getElementById('stopToneBtn').addEventListener('click', stopTone);
+
+  function applyTonePlaybackVisibility(){
+    document.body.classList.toggle('hide-tone', !state.showTonePlayback);
+  }
+  const tonePlaybackToggle = document.getElementById('tonePlaybackToggle');
+  tonePlaybackToggle.addEventListener('change', ()=>{
+    state.showTonePlayback = tonePlaybackToggle.checked;
+    if (!state.showTonePlayback) stopTone();
+    applyTonePlaybackVisibility();
+    saveSettings();
+  });
+
   /* ---------- matching + UI update ---------- */
   function candidateList(){
     if (state.mode === 'chanter') return state.chanter;
     if (state.mode === 'drones') return state.drones;
     return [...state.chanter, ...state.drones];
+  }
+
+  /* Dwell gating: a note only updates the reference tables / whole-chanter
+     view once it's been the closest match continuously for state.dwellMs —
+     a short blip or a briefly misidentified transient never counts. The
+     hero gauge above still tracks instantly, for live real-time feedback. */
+  let dwellId = null, dwellSamples = [], dwellStartTs = 0, dwellCommitted = false, lastRelRenderTs = 0;
+  function resetDwellTracking(){
+    dwellId = null; dwellSamples = []; dwellStartTs = 0; dwellCommitted = false;
+  }
+  function updateDwellTracking(id, cents, target, now){
+    if (id !== dwellId){
+      dwellId = id; dwellStartTs = now; dwellSamples = [cents]; dwellCommitted = false;
+      return;
+    }
+    dwellSamples.push(cents);
+    if (dwellSamples.length > 90) dwellSamples.shift(); // ~1.5s of samples at 60fps, keeps it responsive to drift
+    const held = now - dwellStartTs;
+    if (!dwellCommitted && held < state.dwellMs) return; // too short — don't touch lastReadings yet
+    dwellCommitted = true;
+    const val = median(dwellSamples);
+    lastReadings[id] = {cents: val, freq: target * Math.pow(2, val/1200), ts: Date.now()};
+    updateRowReading(id, val);
+    pushHistory(id, val, now);
+    if (now - lastRelRenderTs > 150){ // throttle the relative-view rebuild, not every frame
+      renderRelative();
+      lastRelRenderTs = now;
+    }
   }
 
   function updateHero(freq){
@@ -643,7 +927,10 @@
       const c = centsDiff(freq, t);
       if (Math.abs(c) < bestAbs){ bestAbs = Math.abs(c); best = def; bestCents = c; bestTarget = t; }
     }
+    const now = performance.now();
     if (!best || bestAbs > 150){
+      trackedNoteId = null;
+      resetDwellTracking();
       document.getElementById('noteName').textContent = '?';
       document.getElementById('targetLine').textContent = 'unclear pitch — try again';
       document.getElementById('freqVal').textContent = fmt1(freq);
@@ -652,19 +939,27 @@
       setNeedle(0);
       return;
     }
-    lastReadings[best.id] = {cents: bestCents, freq, ts: Date.now()};
+    lastGoodTs = now;
+
+    if (best.id !== trackedNoteId){
+      trackedNoteId = best.id;
+      smoothedCents = bestCents; // snap immediately on a genuine note change
+    } else {
+      smoothedCents += (bestCents - smoothedCents) * SMOOTH_ALPHA; // ease within the same note
+    }
+    const displayFreq = bestTarget * Math.pow(2, smoothedCents/1200);
 
     document.getElementById('noteName').textContent = best.name;
     document.getElementById('targetLine').textContent = 'target ' + fmt1(bestTarget) + ' Hz';
-    document.getElementById('freqVal').textContent = fmt1(freq);
-    const sign = bestCents>0 ? '+' : '';
-    document.getElementById('centsVal').textContent = sign + fmt1(bestCents) + '¢';
+    document.getElementById('freqVal').textContent = fmt1(displayFreq);
+    const sign = smoothedCents>0 ? '+' : '';
+    document.getElementById('centsVal').textContent = sign + fmt1(smoothedCents) + '¢';
 
-    const status = statusFor(bestCents);
+    const status = statusFor(smoothedCents);
     setStatusLabel(status, status==='in-tune' ? 'in tune' : (status==='sharp' ? 'sharp' : 'flat'));
-    setNeedle(bestCents);
-    updateRowReading(best.id, bestCents);
-    renderRelative();
+    setNeedle(smoothedCents);
+
+    updateDwellTracking(best.id, bestCents, bestTarget, now);
   }
 
   function resetHeroListeningNoSignal(){
@@ -676,6 +971,8 @@
     setNeedle(0);
   }
   function resetHeroIdle(){
+    trackedNoteId = null;
+    resetDwellTracking();
     document.getElementById('noteName').textContent = '—';
     document.getElementById('targetLine').textContent = 'play a note or drone to begin';
     document.getElementById('freqVal').textContent = '–';
@@ -691,7 +988,8 @@
   }
 
   /* ---------- gauge (SVG semicircle, -50..+50 cents) ---------- */
-  const CX=140, CY=150, R=105;
+  const CX=140, CY=150, R=100;
+  const SVGNS = 'http://www.w3.org/2000/svg';
   function polar(cx,cy,r,angleDeg){
     const a = (angleDeg-180)*Math.PI/180;
     return {x: cx + r*Math.cos(a), y: cy + r*Math.sin(a)};
@@ -701,44 +999,128 @@
     const large = (a1-a0) <= 180 ? 0 : 1;
     return `M ${p0.x.toFixed(2)} ${p0.y.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`;
   }
+  function faceWedgePath(cx,cy,r){
+    const p0 = polar(cx,cy,r,0), p1 = polar(cx,cy,r,180);
+    return `M ${p0.x.toFixed(2)} ${p0.y.toFixed(2)} A ${r} ${r} 0 0 1 ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} L ${cx} ${cy} Z`;
+  }
+  function mkLine(p1,p2,stroke,width){
+    const line = document.createElementNS(SVGNS,'line');
+    line.setAttribute('x1',p1.x.toFixed(2)); line.setAttribute('y1',p1.y.toFixed(2));
+    line.setAttribute('x2',p2.x.toFixed(2)); line.setAttribute('y2',p2.y.toFixed(2));
+    line.setAttribute('stroke',stroke); line.setAttribute('stroke-width',width);
+    line.setAttribute('stroke-linecap','round');
+    return line;
+  }
   function centsToAngle(c){
     const clamped = Math.max(-50, Math.min(50, c));
     return ((clamped + 50)/100) * 180; // 0..180, left(flat)->right(sharp)
   }
+  // zone boundaries match the configurable in-tune threshold used by statusFor(), with a
+  // small visual gap on either side so the three bands read as distinct at a glance
+  const GAP = 3;
+  function zoneBounds(){
+    const t = Math.max(1, Math.min(50, state.inTuneThreshold));
+    return { lo: centsToAngle(-t), hi: centsToAngle(t) };
+  }
   function initGauge(){
-    // angle 0 = far left (flat, -50c), 180 = far right (sharp, +50c)
-    document.getElementById('zoneFlat').setAttribute('d', arcPath(CX,CY,R,0,72));
+    const {lo: ZONE_OK_LO, hi: ZONE_OK_HI} = zoneBounds();
+    document.getElementById('faceBg').setAttribute('d', faceWedgePath(CX,CY,R+26));
+    document.getElementById('bezel').setAttribute('d', arcPath(CX,CY,R+14,0,180));
+
+    document.getElementById('zoneFlat').setAttribute('d', arcPath(CX,CY,R,0,ZONE_OK_LO-GAP));
     document.getElementById('zoneFlat').setAttribute('stroke', '#5C88AC');
-    document.getElementById('zoneOk').setAttribute('d', arcPath(CX,CY,R,81,99));
+    document.getElementById('zoneOk').setAttribute('d', arcPath(CX,CY,R,ZONE_OK_LO,ZONE_OK_HI));
     document.getElementById('zoneOk').setAttribute('stroke', '#5FA777');
-    document.getElementById('zoneSharp').setAttribute('d', arcPath(CX,CY,R,108,180));
+    document.getElementById('zoneSharp').setAttribute('d', arcPath(CX,CY,R,ZONE_OK_HI+GAP,180));
     document.getElementById('zoneSharp').setAttribute('stroke', '#C1584C');
 
-    const ticks = document.getElementById('ticks');
-    ticks.innerHTML='';
-    [-50,-25,0,25,50].forEach(c=>{
+    const ticks = document.getElementById('ticks'); ticks.innerHTML='';
+    const labels = document.getElementById('tickLabels'); labels.innerHTML='';
+    const majors = [-50,-25,0,25,50];
+    for (let c=-45; c<=45; c+=5){
+      if (majors.includes(c)) continue;
       const ang = centsToAngle(c);
-      const p1 = polar(CX,CY,R-10,ang);
-      const p2 = polar(CX,CY,R+2,ang);
-      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
-      line.setAttribute('x1',p1.x);line.setAttribute('y1',p1.y);
-      line.setAttribute('x2',p2.x);line.setAttribute('y2',p2.y);
-      line.setAttribute('stroke','#3A4842');line.setAttribute('stroke-width','2');
-      ticks.appendChild(line);
+      ticks.appendChild(mkLine(polar(CX,CY,R-6,ang), polar(CX,CY,R+2,ang), '#3A4842', 1.2));
+    }
+    majors.forEach(c=>{
+      const ang = centsToAngle(c);
+      ticks.appendChild(mkLine(polar(CX,CY,R-13,ang), polar(CX,CY,R+3,ang), '#5C6D66', 2));
+      const lp = polar(CX,CY,R+20,ang);
+      const text = document.createElementNS(SVGNS,'text');
+      text.setAttribute('x', lp.x.toFixed(2));
+      text.setAttribute('y', (lp.y+3).toFixed(2));
+      text.setAttribute('text-anchor','middle');
+      text.setAttribute('font-family',"'IBM Plex Mono', monospace");
+      text.setAttribute('font-size','9.5');
+      text.setAttribute('fill','#7C8880');
+      text.textContent = (c>0?'+':'') + c;
+      labels.appendChild(text);
     });
   }
   function setNeedle(cents){
     const ang = centsToAngle(cents);
-    const tip = polar(CX,CY,R-16,ang);
+    const tip = polar(CX,CY,R-14,ang);
     const needle = document.getElementById('needle');
     needle.setAttribute('x2', tip.x.toFixed(2));
     needle.setAttribute('y2', tip.y.toFixed(2));
     const status = statusFor(cents);
     const color = status==='in-tune' ? '#A6DABB' : (status==='sharp' ? '#E9A79C' : '#9FC0DA');
     needle.setAttribute('stroke', cents===0 ? '#ECE7D8' : color);
+    const pivot = document.getElementById('pivot');
+    const okGlow = status==='in-tune';
+    needle.setAttribute('filter', okGlow ? 'url(#needleShadow) url(#okGlow)' : 'url(#needleShadow)');
+    pivot.style.filter = okGlow ? 'url(#okGlow)' : '';
   }
 
   /* ---------- tables ---------- */
+  let noteHistory = {};      // id -> array of recent cents readings, for the trend sparkline
+  let historyThrottle = {};  // id -> last time we pushed a history point (avoid one point per frame)
+  const HISTORY_MAX = 40;
+  const HISTORY_PUSH_MS = 400;
+
+  function pushHistory(id, cents, now){
+    const last = historyThrottle[id] || 0;
+    if (now - last < HISTORY_PUSH_MS) return;
+    historyThrottle[id] = now;
+    const arr = noteHistory[id] || (noteHistory[id] = []);
+    arr.push(cents);
+    if (arr.length > HISTORY_MAX) arr.shift();
+    updateRowSparkline(id);
+  }
+  function sparklinePoints(hist){
+    if (!hist || hist.length === 0) return '';
+    if (hist.length === 1){
+      const y = (10 - (Math.max(-30,Math.min(30,hist[0]))/30)*8).toFixed(1);
+      return `28,${y} 28,${y}`;
+    }
+    return hist.map((c,i)=>{
+      const x = (i/(hist.length-1))*56;
+      const y = 10 - (Math.max(-30,Math.min(30,c))/30)*8;
+      return x.toFixed(1)+','+y.toFixed(1);
+    }).join(' ');
+  }
+  function updateRowSparkline(id){
+    const row = document.getElementById('row-'+id);
+    if (!row) return;
+    const line = row.querySelector('.spark-line');
+    if (!line) return;
+    const hist = noteHistory[id] || [];
+    line.setAttribute('points', sparklinePoints(hist));
+    const latest = hist.length ? statusFor(hist[hist.length-1]) : '';
+    const color = latest==='in-tune' ? '#5FA777' : (latest==='sharp' ? '#C1584C' : (latest==='flat' ? '#5C88AC' : '#68746D'));
+    line.setAttribute('stroke', color);
+  }
+
+  /* Clears recorded readings/history — called whenever the reference (Low A,
+     intonation style, or an individual interval) changes, since old cents
+     readings were measured against a target that no longer applies. */
+  function resetAllReadings(){
+    lastReadings = {};
+    noteHistory = {};
+    historyThrottle = {};
+    resetDwellTracking();
+  }
+
   function rowStatusChip(id){
     const r = lastReadings[id];
     if (!r) return '<span class="chip pending">—</span>';
@@ -746,17 +1128,27 @@
     const label = s==='in-tune' ? 'in tune' : (s==='sharp' ? '+'+fmt1(r.cents)+'¢' : fmt1(r.cents)+'¢');
     return `<span class="chip ${s}">${label}</span>`;
   }
+  function sparkCell(id){
+    return `<svg class="spark" viewBox="0 0 56 20" preserveAspectRatio="none">
+      <line class="spark-zero" x1="0" y1="10" x2="56" y2="10"/>
+      <polyline class="spark-line" points="${sparklinePoints(noteHistory[id])}"/>
+    </svg>`;
+  }
+  function playCell(id, freq){
+    return `<button class="play-btn" data-id="${id}" data-freq="${freq.toFixed(2)}" aria-label="Play reference tone" title="Play reference tone">▶</button>`;
+  }
   function renderTables(){
     const cBody = document.getElementById('chanterTbody');
     cBody.innerHTML = state.chanter.map(def=>{
       const t = targetFreq(def);
-      return `<tr id="row-${def.id}"><td class="name">${def.name}</td><td>${fmt1(t)}</td><td>${rowStatusChip(def.id)}</td></tr>`;
+      return `<tr id="row-${def.id}"><td class="name">${def.name}</td><td>${fmt1(t)}</td><td>${rowStatusChip(def.id)}</td><td>${sparkCell(def.id)}</td><td class="play-col">${playCell(def.id,t)}</td></tr>`;
     }).join('');
     const dBody = document.getElementById('droneTbody');
     dBody.innerHTML = state.drones.map(def=>{
       const t = targetFreq(def);
-      return `<tr id="row-${def.id}"><td class="name">${def.name}</td><td>${fmt1(t)}</td><td>${rowStatusChip(def.id)}</td></tr>`;
+      return `<tr id="row-${def.id}"><td class="name">${def.name}</td><td>${fmt1(t)}</td><td>${rowStatusChip(def.id)}</td><td>${sparkCell(def.id)}</td><td class="play-col">${playCell(def.id,t)}</td></tr>`;
     }).join('');
+    updatePlayButtonsUI();
   }
   function updateRowReading(id, cents){
     lastReadings[id] = lastReadings[id] || {};
@@ -770,21 +1162,39 @@
   }
 
   /* ---------- relative (whole-chanter) view ---------- */
+  const REL_SCALE_MAX = 40; // cents range shown by the whole-chanter bars/axis
+  function tunedBandRect(){
+    const t = Math.max(0, Math.min(REL_SCALE_MAX, state.inTuneThreshold));
+    const widthPct = (t / REL_SCALE_MAX) * 100;
+    return { leftPct: 50 - widthPct/2, widthPct };
+  }
+  function renderRelScale(){
+    const container = document.getElementById('relScale');
+    if (!container) return;
+    const {leftPct, widthPct} = tunedBandRect();
+    const majors = [-40,-20,0,20,40];
+    const ticksHtml = majors.map(c=>{
+      const pct = ((c + REL_SCALE_MAX) / (2*REL_SCALE_MAX)) * 100;
+      return `<span class="tick" style="left:${pct}%;"></span><span class="tick-label" style="left:${pct}%;">${(c>0?'+':'')+c}</span>`;
+    }).join('');
+    container.innerHTML = `<span></span><div class="axis"><div class="tuned-band" style="left:${leftPct}%;width:${widthPct}%;"></div>${ticksHtml}</div><span></span>`;
+  }
   function renderRelative(){
     const container = document.getElementById('relRows');
+    const {leftPct, widthPct} = tunedBandRect();
     const rows = state.chanter.map(def=>{
       const r = lastReadings[def.id];
       const cents = r ? r.cents : null;
       const status = statusFor(cents);
-      const pct = cents===null ? 0 : Math.max(-40, Math.min(40, cents));
-      const widthPct = Math.abs(pct)/40*50; // half-track max
-      const left = pct>=0 ? '50%' : (50 - widthPct)+'%';
-      const width = widthPct+'%';
+      const pct = cents===null ? 0 : Math.max(-REL_SCALE_MAX, Math.min(REL_SCALE_MAX, cents));
+      const barWidthPct = Math.abs(pct)/REL_SCALE_MAX*50; // half-track max
+      const left = pct>=0 ? '50%' : (50 - barWidthPct)+'%';
+      const width = barWidthPct+'%';
       const barCls = cents===null ? '' : status;
       const centsTxt = cents===null ? '–' : ((cents>0?'+':'')+fmt1(cents)+'¢');
       return `<div class="rel-row">
         <span class="lbl">${def.name}</span>
-        <div class="rel-track"><div class="zero"></div><div class="bar ${barCls}" style="left:${left};width:${width};"></div></div>
+        <div class="rel-track"><div class="tuned-band" style="left:${leftPct}%;width:${widthPct}%;"></div><div class="zero"></div><div class="bar ${barCls}" style="left:${left};width:${width};"></div></div>
         <span class="cents">${centsTxt}</span>
       </div>`;
     }).join('');
@@ -802,10 +1212,23 @@
   }
 
   document.getElementById('clearRelBtn').addEventListener('click', ()=>{
-    lastReadings = {};
+    resetAllReadings();
     renderTables();
     renderRelative();
   });
+
+  const inTuneSlider = document.getElementById('inTuneSlider');
+  const inTuneVal = document.getElementById('inTuneVal');
+  inTuneSlider.addEventListener('input', ()=>{
+    state.inTuneThreshold = parseFloat(inTuneSlider.value);
+    inTuneVal.textContent = '\u00B1' + fmt1(state.inTuneThreshold) + '¢';
+    renderRelScale();
+    renderRelative();
+    renderTables();
+    initGauge();
+    Object.keys(noteHistory).forEach(updateRowSparkline);
+  });
+  inTuneSlider.addEventListener('change', saveSettings);
 
   /* ---------- Low A controls ---------- */
   const lowAInput = document.getElementById('lowAInput');
@@ -814,6 +1237,7 @@
     if (!isNaN(v) && v>0){
       state.lowA = Math.round(v*10)/10;
       lowAInput.value = state.lowA.toFixed(1);
+      resetAllReadings();
       renderTables();
       renderRelative();
       renderIntervalEditor();
@@ -823,6 +1247,7 @@
   document.getElementById('resetLowABtn').addEventListener('click', ()=>{
     state.lowA = 480.0;
     lowAInput.value = '480.0';
+    resetAllReadings();
     renderTables(); renderRelative(); saveSettings();
   });
   /* ---------- Low A capture: 5s get-ready delay, then sample for 3s ---------- */
@@ -876,6 +1301,7 @@
     const f = median(calibrationSamples);
     state.lowA = Math.round(f*10)/10;
     lowAInput.value = state.lowA.toFixed(1);
+    resetAllReadings();
     renderTables(); renderRelative(); renderIntervalEditor(); saveSettings();
     calStatus('Low A set to ' + state.lowA.toFixed(1) + ' Hz, from ' + calibrationSamples.length + ' samples.');
   }
@@ -968,6 +1394,8 @@
 
   function renderLog(){
     const list = document.getElementById('logList');
+    const exportBtn = document.getElementById('exportCsvBtn');
+    if (exportBtn) exportBtn.disabled = logEntries.length === 0;
     if (logEntries.length===0){
       list.innerHTML = '<p class="empty-note">No snapshots saved yet.</p>';
       return;
@@ -992,6 +1420,38 @@
     });
   }
 
+  /* ---------- CSV export ---------- */
+  const CSV_NOTE_ORDER = [...DEFAULT_CHANTER, ...DEFAULT_DRONES].map(d=>d.id);
+  function logToCSV(){
+    const header = ['timestamp','temperature','unit','low_a_hz', ...CSV_NOTE_ORDER].join(',');
+    const rows = logEntries.slice().reverse().map(e=>{ // oldest first in the export
+      const byId = {};
+      e.readings.forEach(r=>{ byId[r.id] = r.cents; });
+      const cols = [
+        new Date(e.ts).toISOString(),
+        e.temp!==null ? e.temp : '',
+        e.unit,
+        e.lowA,
+        ...CSV_NOTE_ORDER.map(id => byId[id]!==undefined ? byId[id] : '')
+      ];
+      return cols.join(',');
+    });
+    return [header, ...rows].join('\n');
+  }
+  document.getElementById('exportCsvBtn').addEventListener('click', ()=>{
+    if (logEntries.length === 0) return;
+    const csv = logToCSV();
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'piob-tuning-log-' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  });
+
   /* ---------- advanced: interval editor ---------- */
   function renderIntervalEditor(){
     const container = document.getElementById('intervalRows');
@@ -1010,6 +1470,7 @@
         if (isNaN(v)) return;
         const target = state.chanter.find(d=>d.id===id) || state.drones.find(d=>d.id===id);
         if (target){ target.cents = Math.round(v*10)/10; }
+        resetAllReadings();
         renderTables(); renderRelative(); renderIntervalEditor(); saveSettings();
       });
     });
@@ -1017,12 +1478,31 @@
   document.getElementById('resetIntervalsBtn').addEventListener('click', ()=>{
     state.chanter = DEFAULT_CHANTER.map(n=>({...n}));
     state.drones = DEFAULT_DRONES.map(n=>({...n}));
+    state.intonationStyle = 'harmonic';
+    document.getElementById('styleSelect').value = 'harmonic';
+    updateStyleDesc();
+    resetAllReadings();
     renderTables(); renderRelative(); renderIntervalEditor(); saveSettings();
   });
-  document.getElementById('etToggle').addEventListener('change', (e)=>{
-    state.equalTemperament = e.target.checked;
+  const styleSelect = document.getElementById('styleSelect');
+  function updateStyleDesc(){
+    const s = INTONATION_STYLES[state.intonationStyle] || INTONATION_STYLES.harmonic;
+    document.getElementById('styleDesc').textContent = s.desc;
+  }
+  styleSelect.addEventListener('change', ()=>{
+    applyIntonationStyle(styleSelect.value);
+    updateStyleDesc();
+    resetAllReadings();
     renderTables(); renderRelative(); renderIntervalEditor(); saveSettings();
   });
+
+  const dwellSlider = document.getElementById('dwellSlider');
+  const dwellVal = document.getElementById('dwellVal');
+  dwellSlider.addEventListener('input', ()=>{
+    state.dwellMs = parseInt(dwellSlider.value, 10);
+    dwellVal.textContent = state.dwellMs + 'ms';
+  });
+  dwellSlider.addEventListener('change', saveSettings);
 
   /* ---------- service worker (best-effort, ignored on insecure origins) ---------- */
   if ('serviceWorker' in navigator && window.isSecureContext){
@@ -1039,7 +1519,15 @@
     lowAInput.value = state.lowA.toFixed(1);
     sensitivitySlider.value = state.sensitivity;
     sensitivityVal.textContent = state.sensitivity + '\u00D7';
-    document.getElementById('etToggle').checked = state.equalTemperament;
+    styleSelect.value = state.intonationStyle;
+    updateStyleDesc();
+    dwellSlider.value = state.dwellMs;
+    dwellVal.textContent = state.dwellMs + 'ms';
+    toneVolumeSlider.value = state.toneVolume;
+    tonePlaybackToggle.checked = state.showTonePlayback;
+    applyTonePlaybackVisibility();
+    inTuneSlider.value = state.inTuneThreshold;
+    inTuneVal.textContent = '\u00B1' + fmt1(state.inTuneThreshold) + '¢';
     document.querySelectorAll('#modeSeg button').forEach(b=>{
       b.classList.toggle('active', b.dataset.mode===state.mode);
     });
@@ -1049,13 +1537,14 @@
     initGauge();
     setNeedle(0);
     renderTables();
+    renderRelScale();
     renderRelative();
     renderIntervalEditor();
     renderLog();
   }
   boot();
 
-  window.addEventListener('beforeunload', ()=>{ if (listening) stopListening(); });
+  window.addEventListener('beforeunload', ()=>{ if (listening) stopListening(); stopTone(); });
 })();
 </script>
 </body>

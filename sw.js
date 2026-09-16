@@ -1,6 +1,6 @@
 // Minimal offline shell. Bump CACHE_NAME whenever index.html changes
 // so returning users pick up the new version instead of a stale cache.
-const CACHE_NAME = 'piob-tuner-v1';
+const CACHE_NAME = 'piob-tuner-v5';
 const SHELL_FILES = ['./index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (event) => {
